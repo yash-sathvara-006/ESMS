@@ -1,60 +1,66 @@
 # Product Requirements Document (PRD)
-## Enterprise Salary Management System (ESMS)
+## Enterprise Employee Salary Management System (ESMS)
 
-**Document Version:** 1.0.0  
-**Target Audience:** Engineering, Product, HR Leadership  
-**Primary Persona:** HR Manager (Global Operations)  
-**Organization Scale:** 10,000 Employees across multiple countries  
+**Target User Persona:** HR Manager of the Organization  
+**Target Scale:** 10,000 Employees across multiple countries  
+**Version:** 1.0.0  
+**Status:** Approved for Implementation  
 
 ---
 
 ### 1. Executive Summary & Problem Framing
-The organization currently tracks and operates salary data for **10,000 employees distributed across multiple countries and currencies** using disparate Excel spreadsheets. This legacy operational mode introduces critical pain points:
-* **Severe Performance & Concurrency Bottlenecks:** Opening and computing formulae across large spreadsheet files is slow, error-prone, and prone to merge conflicts.
-* **Lack of Executive Visibility:** Answering foundational executive questions—such as *"How does the organization pay people?"*, *"What is our departmental spend by geography?"*, and *"Do we have pay parity gaps across genders or salary bands?"*—requires days of manual pivot-table synthesis.
-* **Audit & Compliance Risk:** Spreadsheets lack automated audit trails for salary modifications, historical change tracking, and role-based data validation.
+Currently, the HR team manages compensation and salary data for 10,000 employees across multiple global jurisdictions using fragmented Excel spreadsheets. This spreadsheet-based process leads to:
+* **High latency & performance bottlenecks:** Excel files lag significantly when handling 10,000+ rows with formulas.
+* **Lack of auditability & concurrency:** Multiple HR managers editing spreadsheets causes silent overwrites and version drift.
+* **Inability to answer strategic compensation questions:** Executive leadership struggles to quickly understand: *"How does our organization pay people across departments, countries, and salary bands?"*
 
-**Product Vision:** Deliver a modern, high-performance, web-based salary intelligence and operations platform that enables the HR Manager to manage compensation records at scale and extract immediate strategic insights into global compensation.
-
----
-
-### 2. User Persona & Key Jobs-To-Be-Done (JTBD)
-* **Persona:** HR Manager (Global Operations & Compensation).
-* **Primary JTBD 1 (Operational Management):** *"When an employee joins, changes roles, or receives a raise, I want to view, search, filter, and adjust their compensation securely with dual-layer validation so our data is consistently accurate."*
-* **Primary JTBD 2 (Executive Compensation Insights):** *"When executive leadership requests compensation audits, I want real-time analytics on company-wide spend, country distribution, department payroll, currency normalization, and pay equity so I can answer questions authoritatively in seconds."*
+**Core Goal:** Build a centralized, web-based salary management system that enables the HR Manager to manage salary data with high performance and gain immediate, data-driven answers to organizational compensation distribution.
 
 ---
 
-### 3. Product Scope & Core Capabilities
-
-#### A. Compensation Analytics Engine ("How the Org Pays People")
-* **Global KPI Metrics:** Total payroll expenditure (normalized to USD benchmark), average salary, median salary, and active headcounts.
-* **Payroll Breakdown by Department & Country:** Multi-dimensional aggregated spend and average compensation across departments (Engineering, Sales, Marketing, HR, Finance, Product, Operations) and regions (US, UK, India, Germany, Canada, Singapore).
-* **Pay Equity & Distribution Analysis:** Gender pay gap analysis and compensation spread across standardized salary grades/bands (Entry, Mid, Senior, Lead, Executive).
-* **Multi-Currency Normalization:** Dynamic conversion of local currencies (USD, GBP, EUR, INR, CAD, SGD) into unified reporting benchmarks using base exchange rates.
-
-#### B. Scalable Employee Compensation Directory
-* **Server-Side Operations for 10,000 Records:** Zero client-side freezing. Database-indexed server-side pagination, multi-column sorting, debounced full-text search (Name, Email, Employee Code), and multi-criteria filtering (Department, Country, Gender, Salary Band).
-* **Single Employee Detail & History:** View base salary, allowances/bonuses, deductions, net compensation, and historical salary revisions.
-* **Salary Adjustments with Audit Trail:** Interactive adjustment workflow with dual validation (Frontend + Backend Zod schemas) that logs previous salary, new salary, adjustment reason, and timestamp atomically.
+### 2. User Persona: HR Manager
+* **Primary Responsibilities:** Monitoring payroll health, ensuring compensation equity, managing salary adjustments, auditing compensation history.
+* **Key Pain Points:**
+  * Needs to query 10,000 employee records with instant search and filtering.
+  * Needs multi-currency conversion to understand total organizational burn in a base currency (USD).
+  * Needs an immutable audit trail when an employee's salary is altered.
 
 ---
 
-### 4. Deliberately Out-of-Scope (Non-Goals) & Strategic Rationale
+### 3. Scope & Core Features (What We Are Building)
 
-To deliver an exceptional, robust, and zero-defect solution within the assessment timeline, the following features have been intentionally excluded:
+#### A. Strategic Compensation Analytics ("How the Org Pays People")
+* **Executive KPI Cards:** Total Annual Payroll (USD), Average Salary, Median Salary, and Total Active Headcount.
+* **Country & Currency Compensation Breakdown:** Total payroll and headcount distribution across global offices (US, UK, Germany, India, Singapore, Canada, etc.).
+* **Departmental Pay Distribution:** Visualizing spend across Engineering, Sales, Product, Marketing, Operations, and HR.
+* **Salary Band & Pay Equity Insights:** Identifying minimum, median, and maximum pay bands per department to spot pay disparities.
 
-| Feature Out of Scope | Strategic & Engineering Rationale |
+#### B. High-Performance Employee & Salary Data Grid
+* **Server-Side Operations:** Server-side search (by name, email, employee code), filtering (department, country, status), and multi-column sorting.
+* **Fast Indexed Pagination:** Sub-10ms response times over 10,000 records using database indexing.
+* **Normalized Multi-Currency View:** Display local currency amounts alongside normalized base USD values.
+
+#### C. Salary Updates & Transaction-Backed Audit Logging
+* **Salary Adjustment Modal:** Update base salary, bonus, and deductions with client-side & server-side Zod validation.
+* **Immutable Audit Trail:** Every compensation adjustment generates an audit log entry within an atomic database transaction.
+
+---
+
+### 4. Deliberately Out of Scope & Engineering Rationale (What We Are NOT Building)
+
+To ensure laser focus on the core objective within the assessment timeline, the following items are deliberately omitted:
+
+| Deliberately Excluded Feature | Engineering & Product Reasoning |
 | :--- | :--- |
-| **Full Direct-Deposit Payroll Processing** (Bank ACH/Wire integrations) | Bank disbursement requires third-party clearing rails and banking licenses. The core goal is **salary data management and compensation intelligence**, not payment gateway execution. |
-| **Complex Dynamic Tax Code Engines per Jurisdiction** | Localized payroll taxes (e.g., US 401k/W-2 vs. Indian TDS/PF vs. UK PAYE) vary by thousands of tax jurisdictions. A standardized deduction model is implemented, leaving specialized tax filing to external ERPs. |
-| **Self-Service Employee Portal** | The target persona is explicitly the **HR Manager**. Building employee logins and individual paystub views dilutes focus from HR analytics and administrative workflows. |
-| **Real-time Live Forex Trading Feeds** | Real-time currency fluctuation introduces non-deterministic reporting variances during quarterly reviews. Centralized, configurable corporate exchange rates ensure predictable and deterministic reporting. |
+| **1. Direct Bank Payout / Disbursement Integration (Stripe/Wise/ACH)** | **Reason:** Real-world banking rails require complex regulatory KYC and webhook reconciliation. The core problem is **salary management and compensation intelligence**, not money transmission. |
+| **2. Employee Self-Service Portal (Employee Login)** | **Reason:** The prompt defines the persona strictly as the **HR Manager**. Building employee logins and individual pay stub viewing dilutes focus from organizational analytics. |
+| **3. Jurisdiction-Specific Tax Filing Automations** | **Reason:** Statutory tax deductions vary wildly across countries and change quarterly. Building tax engines is outside the scope of core compensation management. |
+| **4. Time & Attendance / Biometric Clock-in** | **Reason:** Organizations already utilize dedicated tools for punch-in tracking. This system acts as the source of truth for base, bonus, and deduction structures. |
 
 ---
 
-### 5. Non-Functional & Technical Excellence Criteria
-* **Query Latency:** Sub-50ms query latency for 10,000 records via composite B-tree indexing on foreign keys and search fields.
-* **Data Integrity & Normalization:** Strictly normalized 3rd Normal Form (3NF) relational database preventing data duplication and update anomalies.
-* **Transactional Atomicity (ACID):** All salary updates and audit logs execute inside isolated database transactions (`prisma.$transaction`).
-* **Test Reliability:** 100% deterministic unit & integration tests covering calculation algorithms, currency conversions, and API routes.
+### 5. Non-Functional & Quality Requirements
+* **Response Time:** API response time $< 50\text{ms}$ for paginated queries over 10,000 records.
+* **Reliability & ACID Compliance:** All salary alterations must use database transactions (`prisma.$transaction`) to prevent orphan or corrupted records.
+* **Type Safety:** End-to-end type safety across the monorepo via shared TypeScript contracts and Zod schemas.
+* **Testability:** Fast, deterministic unit tests covering core salary calculations, aggregations, and currency conversions.
