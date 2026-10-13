@@ -46,6 +46,13 @@ Currently, the HR team manages compensation and salary data for 10,000 employees
 
 ---
 
+#### D. Automated High-Speed Seeding & Auto-Bootstrap (10,000 Records)
+* **Zero-Configuration Evaluation:** On initial server startup, the system detects if the database is unseeded and automatically populates 10,000 employees with salaries in $< 3$ seconds via atomic Prisma batch transactions.
+* **Realistic Demographic & Pay Variance:** Deterministic seed distribution across 8 countries, 8 departments, 5 seniority tiers, local currencies (USD, GBP, INR, EUR, SGD, CAD, JPY, AUD), and balanced gender distribution to enable rich pay equity analysis.
+* **CLI Idempotency:** A standalone command `npm run db:seed` is provided for manual resets.
+
+---
+
 ### 4. Deliberately Out of Scope & Engineering Rationale (What We Are NOT Building)
 
 To ensure laser focus on the core objective within the assessment timeline, the following items are deliberately omitted:
@@ -62,5 +69,6 @@ To ensure laser focus on the core objective within the assessment timeline, the 
 ### 5. Non-Functional & Quality Requirements
 * **Response Time:** API response time $< 50\text{ms}$ for paginated queries over 10,000 records.
 * **Reliability & ACID Compliance:** All salary alterations must use database transactions (`prisma.$transaction`) to prevent orphan or corrupted records.
+* **Auto-Bootstrap Database:** Server startup verifies database state and auto-seeds if empty without blocking subsequent restarts.
 * **Type Safety:** End-to-end type safety across the monorepo via shared TypeScript contracts and Zod schemas.
 * **Testability:** Fast, deterministic unit tests covering core salary calculations, aggregations, and currency conversions.

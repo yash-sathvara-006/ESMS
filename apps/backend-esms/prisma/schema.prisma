@@ -1,0 +1,97 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Department {
+  id        String     @id @default(uuid())
+  code      String     @unique
+  name      String
+  employees Employee[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Country {
+  id                String     @id @default(uuid())
+  code              String     @unique
+  name              String
+  currency          String
+  exchangeRateToUSD Float
+  employees         Employee[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Employee {
+  id             String          @id @default(uuid())
+  employeeCode   String          @unique
+  firstName      String
+  lastName       String
+  email          String          @unique
+  gender         String
+  hireDate       DateTime
+  status         String          @default("ACTIVE")
+  
+  departmentId   String
+  department     Department      @relation(fields: [departmentId], references: [id])
+  
+  countryId      String
+  country        Country         @relation(fields: [countryId], references: [id])
+
+  salaries       Salary[]
+  salaryAuditLogs SalaryAuditLog[]
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([departmentId])
+  @@index([countryId])
+  @@index([status])
+  @@index([departmentId, countryId])
+}
+
+model Salary {
+  id            String    @id @default(uuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  baseSalary    Float
+  bonus         Float     @default(0)
+  deductions    Float     @default(0)
+  netSalary     Float
+  currency      String
+  effectiveDate DateTime  @default(now())
+  isCurrent     Boolean   @default(true)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([employeeId])
+  @@index([isCurrent])
+  @@index([employeeId, isCurrent])
+}
+
+model SalaryAuditLog {
+  id            String    @id @default(uuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  previousBase  Float
+  newBase       Float
+  previousBonus Float     @default(0)
+  newBonus      Float     @default(0)
+  currency      String
+  changeReason  String
+  changedBy     String    @default("HR Manager")
+  changedAt     DateTime  @default(now())
+
+  @@index([employeeId])
+  @@index([changedAt])
+}
