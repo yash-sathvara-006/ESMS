@@ -71,4 +71,10 @@ To ensure laser focus on the core objective within the assessment timeline, the 
 * **Reliability & ACID Compliance:** All salary alterations must use database transactions (`prisma.$transaction`) to prevent orphan or corrupted records.
 * **Auto-Bootstrap Database:** Server startup verifies database state and auto-seeds if empty without blocking subsequent restarts.
 * **Type Safety:** End-to-end type safety across the monorepo via shared TypeScript contracts and Zod schemas.
-* **Testability:** Fast, deterministic unit tests covering core salary calculations, aggregations, and currency conversions.
+* **Comprehensive Test Suite (30 Deterministic Tests):** Fast, 100% deterministic tests across 5 isolated suites:
+  1. **Salary Math & Multi-Currency Engine:** Testing formula precision, currency exchange rates across all 8 jurisdictions, and edge cases.
+  2. **Dual-Tier Zod Validation:** Asserting query constraints, payload sanitization, and rejection of negative/malformed financial inputs.
+  3. **Compensation Analytics Aggregations:** Verifying exact median calculation (odd/even), spend share percentages (100% sum), and gender pay gap parity ratios.
+  4. **Atomic Transaction & Audit Logging:** Testing state mutation, `isCurrent` flag rotation, and immutable audit record generation.
+  5. **HTTP REST API Contracts:** Testing live status codes, pagination meta, and 400/404 handling via Supertest.
+
