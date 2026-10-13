@@ -1,0 +1,23 @@
+{
+  "name": "esms-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise Employee Salary Management Software (ESMS) for 10,000 employees",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"blue,green\" \"npm run dev -w apps/backend-esms\" \"npm run dev -w apps/web-esms\"",
+    "dev:backend": "npm run dev -w apps/backend-esms",
+    "dev:frontend": "npm run dev -w apps/web-esms",
+    "build": "npm run build --workspaces",
+    "test": "npm run test -w apps/backend-esms",
+    "db:generate": "npm run db:generate -w apps/backend-esms",
+    "db:push": "npm run db:push -w apps/backend-esms",
+    "seed": "npm run seed -w apps/backend-esms"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
