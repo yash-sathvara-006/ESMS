@@ -18,6 +18,10 @@ This document serves as the primary gateway to the technical, architectural, and
    👉 **[docs/architecture/SEEDING_AND_DATA_STRATEGY.md](docs/architecture/SEEDING_AND_DATA_STRATEGY.md)**  
    *Benchmarks the high-speed 3.63s batch seeding algorithm, multi-currency conversion matrix across 8 jurisdictions, zero-configuration auto-bootstrap, uniqueness audit report, and the SQLite vs. PostgreSQL scalability trade-off analysis.*
 
+4. **Intentional AI Collaboration & Prompt Engineering Log:**
+   👉 **[docs/artifacts/AI_COLLABORATION_AND_PROMPTS.md](docs/artifacts/AI_COLLABORATION_AND_PROMPTS.md)**  
+   *Documents structured prompt design, human-in-the-loop architectural guardrails, technical course-corrections, and verification procedures.*
+
 ---
 
 ## 🚦 Implementation Milestones Status
@@ -27,7 +31,7 @@ This document serves as the primary gateway to the technical, architectural, and
 | **1** | Project Setup & Monorepo Baseline | ✅ **Completed** | Clean workspaces (`web-esms`, `backend-esms`, `shared-types`), Git baseline. |
 | **2** | 3NF Database Normalization & Prisma | ✅ **Completed** | 5 Relational Models, Foreign keys, B-tree indexes, SQLite `dev.db`. |
 | **3** | 10,000 Employees Seeding & Auto-Bootstrap | ✅ **Completed** | Deterministic seed in 3.63s, 10k unique records, zero-config startup. |
-| **4** | Backend APIs & Business Logic | ⏳ **In Progress** | Server-side Search/Filter/Pagination, Analytics Endpoints, Salary Transactions. |
-| **5** | Deterministic Unit Testing Suite | 🕒 **Pending** | Fast unit tests for salary math, currency conversions, and analytics. |
+| **4** | Backend APIs & Business Logic | ✅ **Completed** | Server-side Search/Filter/Pagination, Analytics Endpoints, Salary Transactions. |
+| **5** | Deterministic Unit Testing Suite | ⏳ **In Progress** | Fast unit tests for salary math, currency conversions, and analytics. |
 | **6** | Frontend Dashboard & Data Grid | 🕒 **Pending** | React 19 UI, Chart.js analytics ("How Org Pays People"), Edit Modal. |
 | **7** | Production Polish & Demo Readiness | 🕒 **Pending** | Final README instructions, verification, and demo delivery. |

@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { bootstrapDatabase } from './db/bootstrap';
+import apiRoutes from './routes';
+import { errorHandler } from './middlewares/error.middleware';
 
 dotenv.config();
 
@@ -25,6 +27,12 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Mount All REST API Routes
+app.use('/api', apiRoutes);
+
+// Global Centralized Error Handler
+app.use(errorHandler);
+
 async function startServer() {
   // Ensure database has 10,000 seeded employees on startup
   await bootstrapDatabase();
@@ -34,8 +42,11 @@ async function startServer() {
   });
 }
 
-startServer().catch((err) => {
-  console.error('Failed to start server:', err);
-});
+// Only start listener if executed directly (not when imported in tests)
+if (process.env.NODE_ENV !== 'test') {
+  startServer().catch((err) => {
+    console.error('Failed to start server:', err);
+  });
+}
 
 export default app;

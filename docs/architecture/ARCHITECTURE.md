@@ -126,3 +126,22 @@ erDiagram
 
 * **Layer 1 (Client-Side):** Real-time Zod validation provides instant user feedback before submitting forms.
 * **Layer 2 (Server-Side):** Strict Express request middleware validates payloads against the exact same Zod schema, rejecting malformed requests with `400 Bad Request`.
+
+---
+
+## 6. REST API Endpoints Specification
+
+| Method | Endpoint | Description | Query / Body Payload | Response Key Metrics |
+| :---: | :--- | :--- | :--- | :--- |
+| **GET** | `/api/health` | System & DB health check | None | `{ status, databaseProvider, timestamp }` |
+| **GET** | `/api/metadata/departments` | Master departments list | None | Array of departments with headcount |
+| **GET** | `/api/metadata/countries` | Master jurisdictions list | None | Array of countries with currency & USD rates |
+| **GET** | `/api/employees` | Paginated search & multi-filter | `page, limit, search, departmentId, countryId, gender, status, sortBy, sortOrder` | `{ data: EmployeeDTO[], meta: PaginationMeta }` |
+| **GET** | `/api/employees/:id` | Single employee details | None | Employee with salary and full audit logs |
+| **PUT** | `/api/employees/:id/salary` | Transactional salary update | `{ baseSalary, bonus, deductions, currency, changeReason, changedBy }` | Updated salary DTO with audit log creation |
+| **GET** | `/api/analytics/summary` | Executive compensation KPIs | None | Total payroll (USD), avg, median, headcount |
+| **GET** | `/api/analytics/by-department`| Department spend distribution | None | Department spend, headcount, min/max, % share |
+| **GET** | `/api/analytics/by-country` | Jurisdictional spend | None | Country spend, local currency vs USD, % share |
+| **GET** | `/api/analytics/pay-equity` | Gender pay gap analytics | None | Male vs Female vs NB avg, parity ratio |
+| **GET** | `/api/analytics/salary-bands` | Compensation bell curve | None | Counts & percentages across 5 salary tiers |
+
