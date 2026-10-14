@@ -9,11 +9,12 @@ export function validateQuery<T extends ZodSchema>(schema: T) {
       (req as any).validatedQuery = parsed;
       next();
     } catch (error) {
-      if (error instanceof ZodError) {
+      if (error instanceof ZodError || (error && (error as any).name === 'ZodError')) {
+        const zodErr = error as ZodError;
         res.status(400).json({
           status: 'error',
           message: 'Invalid query parameters',
-          errors: error.issues.map((issue) => ({
+          errors: zodErr.issues.map((issue) => ({
             field: issue.path.join('.'),
             message: issue.message
           }))
@@ -33,11 +34,12 @@ export function validateBody<T extends ZodSchema>(schema: T) {
       req.body = parsed;
       next();
     } catch (error) {
-      if (error instanceof ZodError) {
+      if (error instanceof ZodError || (error && (error as any).name === 'ZodError')) {
+        const zodErr = error as ZodError;
         res.status(400).json({
           status: 'error',
           message: 'Invalid request body',
-          errors: error.issues.map((issue) => ({
+          errors: zodErr.issues.map((issue) => ({
             field: issue.path.join('.'),
             message: issue.message
           }))
