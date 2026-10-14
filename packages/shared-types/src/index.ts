@@ -18,10 +18,31 @@ export const employeeFilterSchema = z.object({
 
 export type EmployeeFilterQuery = z.infer<typeof employeeFilterSchema>;
 
+export const deductionCategoryEnum = z.enum([
+  'TAX',
+  'HEALTH_INSURANCE',
+  'RETIREMENT',
+  'LOAN_RECOVERY',
+  'UNPAID_LEAVE',
+  'OTHER'
+]);
+
+export type DeductionCategory = z.infer<typeof deductionCategoryEnum>;
+
+export const salaryDeductionItemInputSchema = z.object({
+  id: z.string().optional(),
+  category: deductionCategoryEnum,
+  label: z.string().min(1, 'Label is required'),
+  amount: z.coerce.number().positive('Amount must be positive')
+});
+
+export type SalaryDeductionItemInput = z.infer<typeof salaryDeductionItemInputSchema>;
+
 export const updateSalarySchema = z.object({
   baseSalary: z.coerce.number().positive('Base salary must be greater than 0'),
   bonus: z.coerce.number().nonnegative('Bonus cannot be negative').default(0),
-  deductions: z.coerce.number().nonnegative('Deductions cannot be negative').default(0),
+  deductions: z.coerce.number().nonnegative('Deductions cannot be negative').optional(),
+  deductionItems: z.array(salaryDeductionItemInputSchema).optional(),
   currency: z.string().min(3).max(3),
   changeReason: z.string().min(3, 'Reason must be at least 3 characters long').max(255),
   changedBy: z.string().optional().default('HR Manager')
@@ -60,6 +81,14 @@ export interface CountryDTO {
   employeeCount?: number;
 }
 
+export interface SalaryDeductionItemDTO {
+  id: string;
+  salaryId: string;
+  category: DeductionCategory;
+  label: string;
+  amount: number;
+}
+
 export interface SalaryDTO {
   id: string;
   employeeId: string;
@@ -70,6 +99,7 @@ export interface SalaryDTO {
   currency: string;
   effectiveDate: string;
   isCurrent: boolean;
+  deductionItems?: SalaryDeductionItemDTO[];
   // Normalized USD equivalents
   baseSalaryUSD?: number;
   netSalaryUSD?: number;

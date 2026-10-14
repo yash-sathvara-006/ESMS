@@ -71,12 +71,30 @@ model Salary {
   effectiveDate DateTime  @default(now())
   isCurrent     Boolean   @default(true)
 
+  deductionItems SalaryDeductionItem[]
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@index([employeeId])
   @@index([isCurrent])
   @@index([employeeId, isCurrent])
+}
+
+model SalaryDeductionItem {
+  id          String   @id @default(uuid())
+  salaryId    String
+  salary      Salary   @relation(fields: [salaryId], references: [id], onDelete: Cascade)
+
+  category    String   // TAX, HEALTH_INSURANCE, PENSION, LOAN_RECOVERY, UNPAID_LEAVE, OTHER
+  label       String
+  amount      Float
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([salaryId])
+  @@index([category])
 }
 
 model SalaryAuditLog {

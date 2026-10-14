@@ -21,7 +21,7 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SalaryEditModal } from '../components/SalaryEditModal';
 import { useDebounce } from '../hooks/useDebounce';
-import { /* Plus, */ Download, /* Upload, */ Edit3, User, Phone, RotateCcw } from 'lucide-react';
+import { /* Plus, */ Download, /* Upload, */ Edit3, User, Phone, RotateCcw, Receipt } from 'lucide-react';
 
 export const EmployeesPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -417,20 +417,20 @@ export const EmployeesPage: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ p: { xs: 2.5, md: 4 }, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, mx: 'auto' }}>
       {/* Page Header */}
       <Box
         sx={{
           display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
+          flexDirection: { xs: 'column', sm: 'row' },
           justifyContent: 'space-between',
-          alignItems: { xs: 'flex-start', md: 'center' },
+          alignItems: { xs: 'flex-start', sm: 'center' },
           gap: 2,
           mb: 3
         }}
       >
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: '1.5rem', md: '1.875rem' }, color: '#0f172a' }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: '1.375rem', sm: '1.75rem', md: '1.875rem' }, color: '#0f172a' }}>
             Employees
           </Typography>
           <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.875rem', mt: 0.25 }}>
@@ -438,13 +438,14 @@ export const EmployeesPage: React.FC = () => {
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
           {/* <Button variant="secondary" leftIcon={<Upload className="w-4 h-4 text-slate-500" />}>Import Excel</Button> */}
           <Button
             variant={hasActiveFilters ? 'primary' : 'secondary'}
             leftIcon={<RotateCcw className={`w-4 h-4 ${hasActiveFilters ? 'text-white' : 'text-slate-400'}`} />}
             onClick={handleClearFilters}
             disabled={!hasActiveFilters}
+            className="flex-1 sm:flex-none justify-center"
           >
             Clear
           </Button>
@@ -453,6 +454,7 @@ export const EmployeesPage: React.FC = () => {
             leftIcon={<Download className={`w-4 h-4 ${selectedExportIds.size > 0 ? 'text-white' : 'text-slate-400'}`} />}
             onClick={handleExport}
             disabled={selectedExportIds.size === 0 || isExporting}
+            className="flex-1 sm:flex-none justify-center"
           >
             {isExporting ? 'Exporting...' : selectedExportIds.size > 0 ? `Export (${selectedExportIds.size})` : 'Export'}
           </Button>
@@ -614,18 +616,60 @@ export const EmployeesPage: React.FC = () => {
                 )}
               </Box>
 
-              {/* Current Salary */}
-              <Box sx={{ mb: 3.5, p: 2.5, borderRadius: '16px', backgroundColor: '#fafbfc', border: '1px solid #f1f5f9' }}>
-                <Typography variant="h4" sx={{ fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a' }}>
-                  {selectedEmp.currentSalary
-                    ? formatCurrency(selectedEmp.currentSalary.baseSalary, selectedEmp.currentSalary.currency)
-                    : '$0'}
-                </Typography>
-                {selectedEmp.currentSalary?.currency !== 'USD' && selectedEmp.currentSalary?.baseSalaryUSD && (
-                  <Typography variant="body2" sx={{ color: '#64748b', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', mt: 0.5 }}>
-                    ≈ ${selectedEmp.currentSalary.baseSalaryUSD.toLocaleString()} USD / year
-                  </Typography>
-                )}
+              {/* Current Salary Overview Card */}
+              <Box sx={{ mb: 3.5, p: 2, borderRadius: '16px', backgroundColor: '#fafbfc', border: '1px solid #f1f5f9' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.6875rem' }}>
+                      Net Take-Home Pay
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#0f172a' }}>
+                      {selectedEmp.currentSalary
+                        ? formatCurrency(selectedEmp.currentSalary.netSalary, selectedEmp.currentSalary.currency)
+                        : '$0'}
+                    </Typography>
+                    {selectedEmp.currentSalary?.currency !== 'USD' && selectedEmp.currentSalary?.baseSalaryUSD && (
+                      <Typography variant="body2" sx={{ color: '#64748b', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', mt: 0.25 }}>
+                        ≈ ${selectedEmp.currentSalary.baseSalaryUSD.toLocaleString()} USD / year
+                      </Typography>
+                    )}
+                  </Box>
+                  <Box
+                    sx={{
+                      px: 1.25,
+                      py: 0.5,
+                      borderRadius: '8px',
+                      backgroundColor: '#eeeffe',
+                      color: '#4f46e5',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    {selectedEmp.currentSalary?.currency || 'USD'}
+                  </Box>
+                </Box>
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, pt: 1.5, borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
+                  <Box sx={{ p: 1, borderRadius: '8px', backgroundColor: '#ffffff', border: '1px solid #f1f5f9' }}>
+                    <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.6875rem', display: 'block' }}>Base</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#0f172a', fontSize: '0.8125rem' }}>
+                      {formatCurrency(selectedEmp.currentSalary?.baseSalary || 0, selectedEmp.currentSalary?.currency || 'USD')}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ p: 1, borderRadius: '8px', backgroundColor: '#ffffff', border: '1px solid #f1f5f9' }}>
+                    <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.6875rem', display: 'block' }}>Bonus</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#16a34a', fontSize: '0.8125rem' }}>
+                      +{formatCurrency(selectedEmp.currentSalary?.bonus || 0, selectedEmp.currentSalary?.currency || 'USD')}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ p: 1, borderRadius: '8px', backgroundColor: '#ffffff', border: '1px solid #f1f5f9' }}>
+                    <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.6875rem', display: 'block' }}>Deductions</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#e11d48', fontSize: '0.8125rem' }}>
+                      -{formatCurrency(selectedEmp.currentSalary?.deductions || 0, selectedEmp.currentSalary?.currency || 'USD')}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
 
               {/* Pay Band Gauge */}
@@ -641,6 +685,120 @@ export const EmployeesPage: React.FC = () => {
                   labelLeft={`Min ${formatCurrency(minBand, selectedEmp.currentSalary?.currency || 'USD')}`}
                   labelRight={`Max ${formatCurrency(maxBand, selectedEmp.currentSalary?.currency || 'USD')}`}
                 />
+              </Box>
+
+              {/* Itemized Deductions Breakdown */}
+              <Box sx={{ mb: 3.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.25 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <Receipt className="w-4 h-4 text-slate-500" />
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#334155' }}>
+                      Itemized Deductions
+                    </Typography>
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-mono)',
+                      color: (selectedEmp.currentSalary?.deductions || 0) > 0 ? '#e11d48' : '#64748b',
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    {(selectedEmp.currentSalary?.deductions || 0) > 0
+                      ? `-${formatCurrency(selectedEmp.currentSalary?.deductions || 0, selectedEmp.currentSalary?.currency || 'USD')}`
+                      : '$0'}
+                  </Typography>
+                </Box>
+
+                {(!selectedEmp.currentSalary?.deductionItems || selectedEmp.currentSalary.deductionItems.length === 0) ? (
+                  <Box sx={{ p: 1.5, borderRadius: '10px', backgroundColor: '#fafbfc', border: '1px solid #f1f5f9', textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                      No itemized deductions applied
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {selectedEmp.currentSalary.deductionItems.map((item) => {
+                      const categoryConfig: Record<string, { bg: string; text: string; label: string }> = {
+                        TAX: { bg: '#fef2f2', text: '#dc2626', label: 'Tax' },
+                        HEALTH_INSURANCE: { bg: '#ecfdf5', text: '#059669', label: 'Insurance' },
+                        RETIREMENT: { bg: '#eef2ff', text: '#4f46e5', label: 'Retirement' },
+                        LOAN_RECOVERY: { bg: '#fffbeb', text: '#d97706', label: 'Loan' },
+                        UNPAID_LEAVE: { bg: '#f8fafc', text: '#475569', label: 'Unpaid Leave' },
+                        OTHER: { bg: '#f1f5f9', text: '#64748b', label: 'Other' },
+                      };
+                      const cat = categoryConfig[item.category] || { bg: '#f1f5f9', text: '#64748b', label: item.category };
+
+                      return (
+                        <Box
+                          key={item.id}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 1.25,
+                            borderRadius: '10px',
+                            backgroundColor: '#fafbfc',
+                            border: '1px solid #f1f5f9',
+                            transition: 'all 0.15s ease-in-out',
+                            '&:hover': {
+                              backgroundColor: '#f8fafc',
+                              borderColor: '#e2e8f0'
+                            }
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+                            <Box
+                              sx={{
+                                px: 1,
+                                py: 0.25,
+                                borderRadius: '6px',
+                                backgroundColor: cat.bg,
+                                color: cat.text,
+                                fontSize: '0.6875rem',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.02em',
+                                flexShrink: 0
+                              }}
+                            >
+                              {cat.label}
+                            </Box>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 600,
+                                color: '#1e293b',
+                                fontSize: '0.8125rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title={item.label}
+                            >
+                              {item.label}
+                            </Typography>
+                          </Box>
+
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-mono)',
+                              color: '#e11d48',
+                              fontSize: '0.8125rem',
+                              flexShrink: 0,
+                              ml: 1
+                            }}
+                          >
+                            -{formatCurrency(item.amount, selectedEmp.currentSalary?.currency || 'USD')}
+                          </Typography>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                )}
               </Box>
 
               {/* Salary History */}

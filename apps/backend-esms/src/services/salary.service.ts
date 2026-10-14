@@ -3,7 +3,7 @@ import { UpdateSalaryInput, SalaryDTO } from 'shared-types';
 
 export class SalaryService {
   async updateSalary(employeeId: string, input: UpdateSalaryInput): Promise<SalaryDTO> {
-    const { baseSalary, bonus, deductions, currency, changeReason, changedBy } = input;
+    const { baseSalary, bonus, deductions, deductionItems, currency, changeReason, changedBy } = input;
 
     // Execute atomic transaction: update current salary, insert new salary, insert audit log
     const result = await prisma.$transaction(async (tx) => {
@@ -35,20 +35,36 @@ export class SalaryService {
         });
       }
 
-      // 3. Compute net salary
-      const netSalary = baseSalary + bonus - deductions;
+      // 3. Compute total deductions: from itemized deductionItems or fallback to deductions
+      let totalDeductions = deductions ?? 0;
+      if (deductionItems && deductionItems.length > 0) {
+        totalDeductions = deductionItems.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+      }
 
-      // 4. Create new current salary record
+      // Compute net salary
+      const netSalary = Math.max(0, baseSalary + bonus - totalDeductions);
+
+      // 4. Create new current salary record with deductionItems
       const newSalary = await tx.salary.create({
         data: {
           employeeId,
           baseSalary,
           bonus,
-          deductions,
+          deductions: totalDeductions,
           netSalary,
           currency,
           effectiveDate: new Date(),
-          isCurrent: true
+          isCurrent: true,
+          deductionItems: deductionItems && deductionItems.length > 0 ? {
+            create: deductionItems.map((item) => ({
+              category: item.category,
+              label: item.label,
+              amount: Number(item.amount)
+            }))
+          } : undefined
+        },
+        include: {
+          deductionItems: true
         }
       });
 
@@ -79,6 +95,13 @@ export class SalaryService {
         currency: newSalary.currency,
         effectiveDate: newSalary.effectiveDate.toISOString(),
         isCurrent: newSalary.isCurrent,
+        deductionItems: newSalary.deductionItems?.map((d: any) => ({
+          id: d.id,
+          salaryId: d.salaryId,
+          category: d.category as any,
+          label: d.label,
+          amount: d.amount
+        })) || [],
         baseSalaryUSD: Math.round(newSalary.baseSalary * rate),
         netSalaryUSD: Math.round(newSalary.netSalary * rate)
       };

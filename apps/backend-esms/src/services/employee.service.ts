@@ -69,7 +69,10 @@ export class EmployeeService {
           country: true,
           salaries: {
             where: { isCurrent: true },
-            take: 1
+            take: 1,
+            include: {
+              deductionItems: true
+            }
           }
         }
       })
@@ -116,6 +119,13 @@ export class EmployeeService {
               currency: currentSal.currency,
               effectiveDate: currentSal.effectiveDate.toISOString(),
               isCurrent: currentSal.isCurrent,
+              deductionItems: (currentSal as any).deductionItems?.map((d: any) => ({
+                id: d.id,
+                salaryId: d.salaryId,
+                category: d.category,
+                label: d.label,
+                amount: d.amount
+              })) || [],
               baseSalaryUSD: Math.round(currentSal.baseSalary * rate),
               netSalaryUSD: Math.round(currentSal.netSalary * rate)
             }
@@ -146,7 +156,10 @@ export class EmployeeService {
         country: true,
         salaries: {
           where: { isCurrent: true },
-          take: 1
+          take: 1,
+          include: {
+            deductionItems: true
+          }
         },
         salaryAuditLogs: {
           orderBy: { changedAt: 'desc' }
@@ -195,6 +208,13 @@ export class EmployeeService {
             currency: currentSal.currency,
             effectiveDate: currentSal.effectiveDate.toISOString(),
             isCurrent: currentSal.isCurrent,
+            deductionItems: (currentSal as any).deductionItems?.map((d: any) => ({
+              id: d.id,
+              salaryId: d.salaryId,
+              category: d.category,
+              label: d.label,
+              amount: d.amount
+            })) || [],
             baseSalaryUSD: Math.round(currentSal.baseSalary * rate),
             netSalaryUSD: Math.round(currentSal.netSalary * rate)
           }

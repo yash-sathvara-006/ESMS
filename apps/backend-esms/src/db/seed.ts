@@ -93,6 +93,7 @@ export async function seedDatabase(totalEmployees = 10000) {
   const startTime = Date.now();
 
   // 1. Clean existing records in referential order
+  await prisma.salaryDeductionItem.deleteMany();
   await prisma.salaryAuditLog.deleteMany();
   await prisma.salary.deleteMany();
   await prisma.employee.deleteMany();
@@ -141,6 +142,7 @@ export async function seedDatabase(totalEmployees = 10000) {
   console.log(`⚡ Generating ${totalEmployees} realistic records in memory...`);
   const employeesToInsert: any[] = [];
   const salariesToInsert: any[] = [];
+  const deductionItemsToInsert: any[] = [];
 
   const startDate = new Date('2021-01-01').getTime();
   const endDate = new Date('2026-02-01').getTime();
@@ -173,9 +175,44 @@ export async function seedDatabase(totalEmployees = 10000) {
 
     // Deductions: 10% - 25% (Taxes, pension, insurance)
     const deductionPercentage = getRandomNumber(10, 25) / 100;
-    const deductions = Math.round(baseSalary * deductionPercentage);
+    const totalDeductions = Math.round(baseSalary * deductionPercentage);
 
-    const netSalary = baseSalary + bonus - deductions;
+    // Itemized breakdown: Tax (55%), Health Insurance (25%), Pension/Retirement (20%)
+    const taxAmount = Math.round(totalDeductions * 0.55);
+    const healthAmount = Math.round(totalDeductions * 0.25);
+    const pensionAmount = totalDeductions - taxAmount - healthAmount;
+
+    deductionItemsToInsert.push({
+      id: crypto.randomUUID(),
+      salaryId,
+      category: 'TAX',
+      label: 'Income Tax Withholding',
+      amount: taxAmount,
+      createdAt: hireDate,
+      updatedAt: hireDate
+    });
+
+    deductionItemsToInsert.push({
+      id: crypto.randomUUID(),
+      salaryId,
+      category: 'HEALTH_INSURANCE',
+      label: 'Comprehensive Medical Plan',
+      amount: healthAmount,
+      createdAt: hireDate,
+      updatedAt: hireDate
+    });
+
+    deductionItemsToInsert.push({
+      id: crypto.randomUUID(),
+      salaryId,
+      category: 'RETIREMENT',
+      label: 'Retirement & Pension Contribution',
+      amount: pensionAmount,
+      createdAt: hireDate,
+      updatedAt: hireDate
+    });
+
+    const netSalary = baseSalary + bonus - totalDeductions;
 
     employeesToInsert.push({
       id: employeeId,
@@ -198,7 +235,7 @@ export async function seedDatabase(totalEmployees = 10000) {
       employeeId,
       baseSalary,
       bonus,
-      deductions,
+      deductions: totalDeductions,
       netSalary,
       currency: countryInfo.currency,
       effectiveDate: hireDate,
@@ -214,10 +251,12 @@ export async function seedDatabase(totalEmployees = 10000) {
   for (let i = 0; i < totalEmployees; i += CHUNK_SIZE) {
     const empChunk = employeesToInsert.slice(i, i + CHUNK_SIZE);
     const salChunk = salariesToInsert.slice(i, i + CHUNK_SIZE);
+    const dedChunk = deductionItemsToInsert.slice(i * 3, (i + CHUNK_SIZE) * 3);
 
     await prisma.$transaction([
       prisma.employee.createMany({ data: empChunk }),
-      prisma.salary.createMany({ data: salChunk })
+      prisma.salary.createMany({ data: salChunk }),
+      prisma.salaryDeductionItem.createMany({ data: dedChunk })
     ]);
 
     const percent = Math.round(((i + CHUNK_SIZE) / totalEmployees) * 100);
@@ -230,15 +269,17 @@ export async function seedDatabase(totalEmployees = 10000) {
   // Verification Summary
   const countEmployees = await prisma.employee.count();
   const countSalaries = await prisma.salary.count();
+  const countDeductionItems = await prisma.salaryDeductionItem.count();
   const countCountries = await prisma.country.count();
   const countDepts = await prisma.department.count();
 
   console.log('───────────────────────────────────────────────────');
   console.log(`📊 DATABASE AUDIT VERIFICATION:`);
-  console.log(`   • Total Employees:  ${countEmployees.toLocaleString()}`);
-  console.log(`   • Total Salaries:   ${countSalaries.toLocaleString()}`);
-  console.log(`   • Countries:        ${countCountries}`);
-  console.log(`   • Departments:      ${countDepts}`);
+  console.log(`   • Total Employees:       ${countEmployees.toLocaleString()}`);
+  console.log(`   • Total Salaries:        ${countSalaries.toLocaleString()}`);
+  console.log(`   • Total Deduction Items: ${countDeductionItems.toLocaleString()}`);
+  console.log(`   • Countries:             ${countCountries}`);
+  console.log(`   • Departments:           ${countDepts}`);
   console.log('───────────────────────────────────────────────────\n');
 
   return {

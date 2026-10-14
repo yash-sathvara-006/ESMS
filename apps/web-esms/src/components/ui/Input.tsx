@@ -46,6 +46,7 @@ export const Input: React.FC<InputProps> = ({
     min,
     max,
     step,
+    required: props.required,
     ...inputProps
   };
 
@@ -63,6 +64,11 @@ export const Input: React.FC<InputProps> = ({
           }}
         >
           {label}
+          {props.required && (
+            <Box component="span" sx={{ color: '#ef4444', ml: 0.5, fontWeight: 700 }}>
+              *
+            </Box>
+          )}
         </Typography>
       )}
 

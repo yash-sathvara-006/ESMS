@@ -8,8 +8,10 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import Tooltip from '@mui/material/Tooltip';
 import MuiSelect from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from './Skeleton';
 
 export interface ColumnDef<T> {
@@ -225,11 +227,11 @@ export function DataTable<T>({
         <Box
           sx={{
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'stretch', sm: 'center' },
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
             gap: 2,
-            px: 2.5,
+            px: { xs: 2, sm: 2.5 },
             py: 2,
             backgroundColor: '#ffffff',
             borderTop: '1px solid #f1f5f9',
@@ -238,8 +240,9 @@ export function DataTable<T>({
         >
           <Box sx={{
             display: 'flex',
-            alignItems: 'center',
-            gap: 2
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            gap: { xs: 1.25, sm: 2 }
           }}>
             {/* Left: showing X–Y of Z */}
             <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.8125rem' }}>
@@ -297,25 +300,37 @@ export function DataTable<T>({
             )}
           </Box>
 
-          {/* Right: Previous / Next buttons */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <button
-              onClick={() => pagination.onPageChange(pagination.page - 1)}
-              disabled={pagination.page <= 1 || isLoading}
-              className="px-4 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Previous
-            </button>
-            <Typography variant="caption" sx={{ color: '#64748b', minWidth: 60, textAlign: 'center' }}>
+          {/* Right: Previous / Next icon buttons with Tooltip */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'space-between', sm: 'flex-end' }, gap: 1.5 }}>
+            <Tooltip title="Previous page" arrow placement="top">
+              <span className="inline-flex">
+                <button
+                  onClick={() => pagination.onPageChange(pagination.page - 1)}
+                  disabled={pagination.page <= 1 || isLoading}
+                  aria-label="Previous page"
+                  className="w-8 h-8 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-xs"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              </span>
+            </Tooltip>
+
+            <Typography variant="caption" sx={{ color: '#64748b', minWidth: 60, textAlign: 'center', fontWeight: 600 }}>
               {pagination.page} / {totalPages}
             </Typography>
-            <button
-              onClick={() => pagination.onPageChange(pagination.page + 1)}
-              disabled={pagination.page >= totalPages || isLoading}
-              className="px-4 py-1.5 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Next
-            </button>
+
+            <Tooltip title="Next page" arrow placement="top">
+              <span className="inline-flex">
+                <button
+                  onClick={() => pagination.onPageChange(pagination.page + 1)}
+                  disabled={pagination.page >= totalPages || isLoading}
+                  aria-label="Next page"
+                  className="w-8 h-8 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-xs"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </span>
+            </Tooltip>
           </Box>
         </Box>
       )}

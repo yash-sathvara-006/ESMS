@@ -58,6 +58,11 @@ export const Select: React.FC<SelectProps> = ({
           }}
         >
           {label}
+          {props.required && (
+            <Box component="span" sx={{ color: '#ef4444', ml: 0.5, fontWeight: 700 }}>
+              *
+            </Box>
+          )}
         </Typography>
       )}
 

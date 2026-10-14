@@ -39,8 +39,10 @@ export const Modal: React.FC<ModalProps> = ({
         },
         paper: {
           sx: {
-            borderRadius: '24px',
-            p: 1,
+            borderRadius: { xs: '18px', sm: '24px' },
+            m: { xs: 2, sm: 3 },
+            width: { xs: 'calc(100% - 32px)', sm: 'auto' },
+            p: { xs: 0.5, sm: 1 },
             boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
             border: '1px solid #f1f5f9',
             backgroundColor: '#ffffff'
