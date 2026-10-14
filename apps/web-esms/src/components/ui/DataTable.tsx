@@ -5,6 +5,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import Checkbox from '@mui/material/Checkbox';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import MuiSelect from '@mui/material/Select';
@@ -36,6 +37,12 @@ export interface DataTableProps<T> {
     onLimitChange?: (newLimit: number) => void;
   };
   className?: string;
+
+  // Row selection for Export / Actions
+  selectable?: boolean;
+  selectedRowIds?: Set<string | number>;
+  onSelectRow?: (rowId: string | number, row: T) => void;
+  onSelectAll?: (selectAll: boolean) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -50,7 +57,11 @@ export function DataTable<T>({
   onRowClick,
   emptyMessage = 'No records found',
   pagination,
-  className = ''
+  className = '',
+  selectable = false,
+  selectedRowIds,
+  onSelectRow,
+  onSelectAll
 }: DataTableProps<T>) {
   const startItem = pagination ? (pagination.page - 1) * pagination.limit + 1 : 0;
   const endItem = pagination ? Math.min(pagination.page * pagination.limit, pagination.total) : 0;
@@ -62,6 +73,46 @@ export function DataTable<T>({
         <Table sx={{ minWidth: 600 }}>
           <TableHead>
             <TableRow sx={{ backgroundColor: '#fcfcfd' }}>
+              {selectable && (
+                <TableCell
+                  padding="checkbox"
+                  sx={{
+                    width: 48,
+                    pl: 2.5,
+                    py: 1.5,
+                    borderBottom: '1px solid #f1f5f9'
+                  }}
+                >
+                  <Checkbox
+                    size="small"
+                    checked={
+                      data.length > 0 &&
+                      data.every((row, rIdx) => {
+                        const id = getRowId ? getRowId(row) : (row as any).id || rIdx;
+                        return selectedRowIds?.has(id);
+                      })
+                    }
+                    indeterminate={
+                      data.length > 0 &&
+                      data.some((row, rIdx) => {
+                        const id = getRowId ? getRowId(row) : (row as any).id || rIdx;
+                        return selectedRowIds?.has(id);
+                      }) &&
+                      !data.every((row, rIdx) => {
+                        const id = getRowId ? getRowId(row) : (row as any).id || rIdx;
+                        return selectedRowIds?.has(id);
+                      })
+                    }
+                    onChange={(e) => onSelectAll && onSelectAll(e.target.checked)}
+                    sx={{
+                      p: 0.5,
+                      color: '#94a3b8',
+                      '&.Mui-checked': { color: '#4f46e5' },
+                      '&.MuiCheckbox-indeterminate': { color: '#4f46e5' }
+                    }}
+                  />
+                </TableCell>
+              )}
               {columns.map((col) => (
                 <TableCell
                   key={col.key}
@@ -87,6 +138,11 @@ export function DataTable<T>({
             {isLoading && data.length === 0 ? (
               Array.from({ length: skeletonRowCount }).map((_, rIdx) => (
                 <TableRow key={rIdx}>
+                  {selectable && (
+                    <TableCell sx={{ width: 48, pl: 2.5, py: 2 }}>
+                      <Skeleton height={18} width={18} borderRadius="4px" />
+                    </TableCell>
+                  )}
                   {columns.map((col, cIdx) => (
                     <TableCell key={cIdx} align={col.align || 'left'} sx={{ py: 2 }}>
                       <Skeleton height={20} width={cIdx === 0 ? '60%' : '80%'} />
@@ -96,7 +152,7 @@ export function DataTable<T>({
               ))
             ) : data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} align="center" sx={{ py: 6, color: '#94a3b8' }}>
+                <TableCell colSpan={columns.length + (selectable ? 1 : 0)} align="center" sx={{ py: 6, color: '#94a3b8' }}>
                   <Typography variant="body2">{emptyMessage}</Typography>
                 </TableCell>
               </TableRow>
@@ -104,6 +160,7 @@ export function DataTable<T>({
               data.map((row, rIdx) => {
                 const rowId = getRowId ? getRowId(row) : (row as any).id || rIdx;
                 const isSelected = selectedRowId !== undefined && selectedRowId === rowId;
+                const isChecked = selectedRowIds?.has(rowId) || false;
 
                 return (
                   <TableRow
@@ -112,12 +169,35 @@ export function DataTable<T>({
                     onClick={() => onRowClick && onRowClick(row)}
                     sx={{
                       cursor: onRowClick ? 'pointer' : 'default',
-                      backgroundColor: isSelected ? '#eeeffe' : 'inherit',
+                      backgroundColor: isSelected ? '#eeeffe' : isChecked ? '#f8faff' : 'inherit',
                       transition: 'background-color 0.15s ease',
                       '&:hover': { backgroundColor: isSelected ? '#eeeffe' : '#f8fafc' },
                       '&:last-child td': { borderBottom: pagination ? '1px solid #f1f5f9' : 'none' }
                     }}
                   >
+                    {selectable && (
+                      <TableCell
+                        padding="checkbox"
+                        sx={{
+                          width: 48,
+                          pl: 2.5,
+                          py: 1.5,
+                          borderBottom: '1px solid #f1f5f9'
+                        }}
+                      >
+                        <Checkbox
+                          size="small"
+                          checked={isChecked}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => onSelectRow && onSelectRow(rowId, row)}
+                          sx={{
+                            p: 0.5,
+                            color: '#cbd5e1',
+                            '&.Mui-checked': { color: '#4f46e5' }
+                          }}
+                        />
+                      </TableCell>
+                    )}
                     {columns.map((col) => (
                       <TableCell
                         key={col.key}
@@ -178,6 +258,26 @@ export function DataTable<T>({
                   value={pagination.limit}
                   onChange={(e) => {
                     pagination.onLimitChange!(Number(e.target.value));
+                  }}
+                  MenuProps={{
+                    disableScrollLock: true,
+                    slotProps: {
+                      paper: {
+                        sx: {
+                          borderRadius: '10px',
+                          boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                          maxHeight: 240,
+                          scrollbarWidth: 'none',
+                          msOverflowStyle: 'none',
+                          '&::-webkit-scrollbar': { display: 'none' },
+                          '& .MuiList-root': {
+                            scrollbarWidth: 'none',
+                            msOverflowStyle: 'none',
+                            '&::-webkit-scrollbar': { display: 'none' }
+                          }
+                        }
+                      }
+                    }
                   }}
                   sx={{
                     fontSize: '0.8125rem',

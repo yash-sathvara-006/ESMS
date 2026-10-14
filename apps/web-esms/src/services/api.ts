@@ -11,7 +11,8 @@ import type {
   CountrySpendDTO,
   PayEquityDTO,
   SalaryBandDTO,
-  SalaryAuditLogDTO
+  SalaryAuditLogDTO,
+  ExportEmployeeInput
 } from 'shared-types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -84,6 +85,23 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify(input)
     });
+  }
+
+  async exportEmployees(input: ExportEmployeeInput): Promise<Blob> {
+    const response = await fetch(`${API_BASE}/employees/export`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(input)
+    });
+
+    if (!response.ok) {
+      const json = await response.json().catch(() => ({}));
+      throw new Error(json.message || 'Failed to export employees from backend');
+    }
+
+    return response.blob();
   }
 
   // Strategic Analytics

@@ -21,7 +21,7 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SalaryEditModal } from '../components/SalaryEditModal';
 import { useDebounce } from '../hooks/useDebounce';
-import { /* Plus, */ Download, Upload, Edit3, User } from 'lucide-react';
+import { /* Plus, */ Download, /* Upload, */ Edit3, User, Phone, RotateCcw } from 'lucide-react';
 
 export const EmployeesPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -45,10 +45,34 @@ export const EmployeesPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
+  // Check if any filter or search is active
+  const hasActiveFilters = Boolean(
+    searchTerm.trim() !== '' ||
+    selectedDept !== '' ||
+    selectedCountry !== '' ||
+    selectedGender !== ''
+  );
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedDept('');
+    setSelectedCountry('');
+    setSelectedGender('');
+    setPage(1);
+  };
+
+  // ── Export selection state ────────────────────────────────────────────────
+  const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
+
   // Reset page to 1 when search term debounce triggers
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch]);
+
+  // Reset row selection when filters, search or page changes
+  useEffect(() => {
+    setSelectedExportIds(new Set());
+  }, [page, limit, debouncedSearch, selectedDept, selectedCountry, selectedGender]);
 
   // ── Detail panel ──────────────────────────────────────────────────────────
   const [selectedEmp, setSelectedEmp] = useState<EmployeeDTO | null>(null);
@@ -187,6 +211,62 @@ export const EmployeesPage: React.FC = () => {
       currency: currency || 'USD',
       maximumFractionDigits: 0
     }).format(amount);
+
+  // ── Row selection handlers for CSV export ─────────────────────────────────
+  const handleSelectRow = (rowId: string) => {
+    setSelectedExportIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = (selectAll: boolean) => {
+    if (selectAll) {
+      const next = new Set(selectedExportIds);
+      employees.forEach((emp) => next.add(emp.id));
+      setSelectedExportIds(next);
+    } else {
+      const next = new Set(selectedExportIds);
+      employees.forEach((emp) => next.delete(emp.id));
+      setSelectedExportIds(next);
+    }
+  };
+
+  // ── Export selected / current page records to CSV via backend API ────────
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (selectedExportIds.size === 0) return;
+    try {
+      setIsExporting(true);
+      const targetIds = Array.from(selectedExportIds);
+
+      const blob = await api.exportEmployees({
+        employeeIds: targetIds
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `employees_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      notify.success(`Exported ${targetIds.length} employee record${targetIds.length > 1 ? 's' : ''} from server`);
+      setSelectedExportIds(new Set());
+    } catch (err: any) {
+      notify.error(`Failed to export from server: ${err.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // ── Table columns ─────────────────────────────────────────────────────────
   const columns: ColumnDef<EmployeeDTO>[] = [
@@ -359,16 +439,42 @@ export const EmployeesPage: React.FC = () => {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-          <Button variant="secondary" leftIcon={<Upload className="w-4 h-4 text-slate-500" />}>Import Excel</Button>
-          <Button variant="secondary" leftIcon={<Download className="w-4 h-4 text-slate-500" />}>Export</Button>
+          {/* <Button variant="secondary" leftIcon={<Upload className="w-4 h-4 text-slate-500" />}>Import Excel</Button> */}
+          <Button
+            variant={hasActiveFilters ? 'primary' : 'secondary'}
+            leftIcon={<RotateCcw className={`w-4 h-4 ${hasActiveFilters ? 'text-white' : 'text-slate-400'}`} />}
+            onClick={handleClearFilters}
+            disabled={!hasActiveFilters}
+          >
+            Clear
+          </Button>
+          <Button
+            variant={selectedExportIds.size > 0 ? 'primary' : 'secondary'}
+            leftIcon={<Download className={`w-4 h-4 ${selectedExportIds.size > 0 ? 'text-white' : 'text-slate-400'}`} />}
+            onClick={handleExport}
+            disabled={selectedExportIds.size === 0 || isExporting}
+          >
+            {isExporting ? 'Exporting...' : selectedExportIds.size > 0 ? `Export (${selectedExportIds.size})` : 'Export'}
+          </Button>
           {/* <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>Add employee</Button> */}
         </Box>
       </Box>
 
-      {/* Filter Bar */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5, mb: 3 }}>
+      {/* Filter Bar (Responsive Grid Columns) */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+            md: '2fr 1fr 1fr 1fr'
+          },
+          gap: 1.5,
+          mb: 3
+        }}
+      >
         {/* Search */}
-        <Box sx={{ flex: 1, minWidth: 260 }}>
+        <Box sx={{ width: '100%' }}>
           <SearchInput
             placeholder="Search name, ID or title"
             value={searchTerm}
@@ -378,7 +484,7 @@ export const EmployeesPage: React.FC = () => {
         </Box>
 
         {/* Country filter */}
-        <Box sx={{ width: 160 }}>
+        <Box sx={{ width: '100%' }}>
           <Select
             value={selectedCountry}
             placeholder="Country"
@@ -389,7 +495,7 @@ export const EmployeesPage: React.FC = () => {
         </Box>
 
         {/* Department filter */}
-        <Box sx={{ width: 170 }}>
+        <Box sx={{ width: '100%' }}>
           <Select
             value={selectedDept}
             placeholder="Department"
@@ -400,7 +506,7 @@ export const EmployeesPage: React.FC = () => {
         </Box>
 
         {/* Gender filter */}
-        <Box sx={{ width: 140 }}>
+        <Box sx={{ width: '100%' }}>
           <Select
             value={selectedGender}
             placeholder="Gender"
@@ -424,6 +530,10 @@ export const EmployeesPage: React.FC = () => {
             selectedRowId={selectedEmp?.id}
             getRowId={(e) => e.id}
             onRowClick={(emp) => setSelectedEmp(emp)}
+            selectable
+            selectedRowIds={selectedExportIds}
+            onSelectRow={(id) => handleSelectRow(id as string)}
+            onSelectAll={handleSelectAll}
             pagination={
               meta
                 ? {
@@ -494,6 +604,14 @@ export const EmployeesPage: React.FC = () => {
                 <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.8125rem', mt: 0.25 }}>
                   Senior Specialist · {selectedEmp.department?.name} · {selectedEmp.country?.name}
                 </Typography>
+                {selectedEmp.phone && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.75 }}>
+                    <Phone className="w-3.5 h-3.5 text-slate-400" />
+                    <Typography variant="caption" sx={{ color: '#475569', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600 }}>
+                      {selectedEmp.phone}
+                    </Typography>
+                  </Box>
+                )}
               </Box>
 
               {/* Current Salary */}

@@ -81,7 +81,23 @@ export const Select: React.FC<SelectProps> = ({
               sx: {
                 borderRadius: '12px',
                 boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                maxHeight: 280
+                maxHeight: 200,
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                '&::-webkit-scrollbar': {
+                  display: 'none',
+                  width: 0,
+                  height: 0
+                },
+                '& .MuiList-root': {
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  '&::-webkit-scrollbar': {
+                    display: 'none',
+                    width: 0,
+                    height: 0
+                  }
+                }
               }
             }
           }

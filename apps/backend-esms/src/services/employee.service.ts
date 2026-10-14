@@ -1,5 +1,5 @@
 import prisma from '../db/prisma';
-import { EmployeeFilterQuery, PaginatedResponse, EmployeeDTO } from 'shared-types';
+import { EmployeeFilterQuery, PaginatedResponse, EmployeeDTO, ExportEmployeeInput } from 'shared-types';
 
 export class EmployeeService {
   async getEmployees(filter: EmployeeFilterQuery): Promise<PaginatedResponse<EmployeeDTO>> {
@@ -87,6 +87,7 @@ export class EmployeeService {
         lastName: emp.lastName,
         fullName: `${emp.firstName} ${emp.lastName}`,
         email: emp.email,
+        phone: (emp as any).phone || '',
         gender: emp.gender,
         hireDate: emp.hireDate.toISOString(),
         status: emp.status,
@@ -165,6 +166,7 @@ export class EmployeeService {
       lastName: emp.lastName,
       fullName: `${emp.firstName} ${emp.lastName}`,
       email: emp.email,
+      phone: (emp as any).phone || '',
       gender: emp.gender,
       hireDate: emp.hireDate.toISOString(),
       status: emp.status,
@@ -210,6 +212,95 @@ export class EmployeeService {
         changedAt: log.changedAt.toISOString()
       }))
     };
+  }
+
+  async exportEmployeesCSV(filter: ExportEmployeeInput): Promise<string> {
+    const { employeeIds, search, departmentId, countryId, gender, status } = filter;
+
+    const where: any = {};
+
+    if (employeeIds && employeeIds.length > 0) {
+      where.id = { in: employeeIds };
+    } else {
+      if (status) {
+        where.status = status;
+      }
+      if (departmentId) {
+        where.departmentId = departmentId;
+      }
+      if (countryId) {
+        where.countryId = countryId;
+      }
+      if (gender) {
+        where.gender = gender;
+      }
+      if (search && search.trim() !== '') {
+        const trimmed = search.trim();
+        where.OR = [
+          { employeeCode: { contains: trimmed } },
+          { firstName: { contains: trimmed } },
+          { lastName: { contains: trimmed } },
+          { email: { contains: trimmed } }
+        ];
+      }
+    }
+
+    const employees = await prisma.employee.findMany({
+      where,
+      orderBy: { employeeCode: 'asc' },
+      include: {
+        department: true,
+        country: true,
+        salaries: {
+          where: { isCurrent: true },
+          take: 1
+        }
+      }
+    });
+
+    const headers = [
+      'employeeCode',
+      'firstname',
+      'lastname',
+      'email',
+      'phone',
+      'gender',
+      'hiredate',
+      'status',
+      'department',
+      'country',
+      'current salary',
+      'last updated at'
+    ];
+
+    const escapeCSV = (val: any) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows = employees.map((emp) => {
+      const currentSal = emp.salaries[0];
+      const baseSalary = currentSal ? currentSal.baseSalary : 0;
+      const lastUpdatedAt = emp.updatedAt ? emp.updatedAt.toISOString().replace('T', ' ').substring(0, 19) : '';
+
+      return [
+        escapeCSV(emp.employeeCode),
+        escapeCSV(emp.firstName),
+        escapeCSV(emp.lastName),
+        escapeCSV(emp.email),
+        escapeCSV((emp as any).phone || ''),
+        escapeCSV(emp.gender),
+        escapeCSV(emp.hireDate ? emp.hireDate.toISOString().split('T')[0] : ''),
+        escapeCSV(emp.status),
+        escapeCSV(emp.department?.name || ''),
+        escapeCSV(emp.country?.name || ''),
+        escapeCSV(baseSalary),
+        escapeCSV(lastUpdatedAt)
+      ];
+    });
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
   }
 }
 

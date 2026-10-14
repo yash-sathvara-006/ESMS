@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { employeeController } from '../controllers/employee.controller';
 import { validateQuery, validateBody } from '../middlewares/validate.middleware';
-import { employeeFilterSchema, updateSalarySchema } from 'shared-types';
+import { employeeFilterSchema, updateSalarySchema, exportEmployeeSchema } from 'shared-types';
 
 const router = Router();
 
@@ -10,6 +10,13 @@ router.get(
   '/',
   validateQuery(employeeFilterSchema),
   (req, res, next) => employeeController.getEmployees(req, res, next)
+);
+
+// POST /api/employees/export - Server-side CSV generation & export
+router.post(
+  '/export',
+  validateBody(exportEmployeeSchema),
+  (req, res, next) => employeeController.exportEmployees(req, res, next)
 );
 
 // GET /api/employees/:id - Single employee details with audit history

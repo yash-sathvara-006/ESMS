@@ -29,6 +29,17 @@ export const updateSalarySchema = z.object({
 
 export type UpdateSalaryInput = z.infer<typeof updateSalarySchema>;
 
+export const exportEmployeeSchema = z.object({
+  employeeIds: z.array(z.string()).optional(),
+  search: z.string().optional(),
+  departmentId: z.string().optional(),
+  countryId: z.string().optional(),
+  gender: z.enum(['MALE', 'FEMALE', 'NON_BINARY']).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional()
+});
+
+export type ExportEmployeeInput = z.infer<typeof exportEmployeeSchema>;
+
 // ==========================================
 // 2. Data Transfer Objects (DTOs)
 // ==========================================
@@ -84,6 +95,7 @@ export interface EmployeeDTO {
   lastName: string;
   fullName: string;
   email: string;
+  phone?: string;
   gender: string;
   hireDate: string;
   status: string;

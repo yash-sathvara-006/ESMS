@@ -65,6 +65,29 @@ export const DEPARTMENTS_DATA = [
   { code: 'LEG', name: 'Legal & Compliance' }
 ];
 
+function generatePhoneNumber(countryCode: string): string {
+  switch (countryCode) {
+    case 'US':
+      return `+1-555-${Math.floor(100 + random() * 900)}-${Math.floor(1000 + random() * 9000)}`;
+    case 'GB':
+      return `+44-7${Math.floor(100000000 + random() * 900000000)}`;
+    case 'IN':
+      return `+91-${Math.floor(6000000000 + random() * 4000000000)}`;
+    case 'DE':
+      return `+49-15${Math.floor(10000000 + random() * 90000000)}`;
+    case 'SG':
+      return `+65-${Math.floor(80000000 + random() * 20000000)}`;
+    case 'CA':
+      return `+1-416-${Math.floor(100 + random() * 900)}-${Math.floor(1000 + random() * 9000)}`;
+    case 'JP':
+      return `+81-90-${Math.floor(1000 + random() * 9000)}-${Math.floor(1000 + random() * 9000)}`;
+    case 'AU':
+      return `+61-4${Math.floor(10000000 + random() * 90000000)}`;
+    default:
+      return `+1-${Math.floor(1000000000 + random() * 9000000000)}`;
+  }
+}
+
 export async function seedDatabase(totalEmployees = 10000) {
   console.log(`\n🌱 Starting high-speed seed for ${totalEmployees} employees...`);
   const startTime = Date.now();
@@ -160,6 +183,7 @@ export async function seedDatabase(totalEmployees = 10000) {
       firstName,
       lastName,
       email,
+      phone: generatePhoneNumber(countryInfo.code),
       gender,
       hireDate,
       status: 'ACTIVE',

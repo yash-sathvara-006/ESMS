@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { employeeService } from '../services/employee.service';
 import { salaryService } from '../services/salary.service';
-import { EmployeeFilterQuery, UpdateSalaryInput } from 'shared-types';
+import { EmployeeFilterQuery, UpdateSalaryInput, ExportEmployeeInput } from 'shared-types';
 
 export class EmployeeController {
   async getEmployees(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -13,6 +13,20 @@ export class EmployeeController {
         data: result.data,
         meta: result.meta
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async exportEmployees(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const input = ((req as any).validatedBody || req.body) as ExportEmployeeInput;
+      const csv = await employeeService.exportEmployeesCSV(input);
+      const filename = `employees_export_${new Date().toISOString().split('T')[0]}.csv`;
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.status(200).send(csv);
     } catch (error) {
       next(error);
     }

@@ -98,6 +98,20 @@
   background: #94a3b8;
 }
 
+/* Hide scrollbar for Select dropdown menus */
+.MuiMenu-paper,
+.MuiMenu-paper .MuiList-root {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.MuiMenu-paper::-webkit-scrollbar,
+.MuiMenu-paper .MuiList-root::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {

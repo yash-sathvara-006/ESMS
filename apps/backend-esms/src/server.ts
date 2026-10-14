@@ -7,6 +7,7 @@ import { errorHandler } from './middlewares/error.middleware';
 
 dotenv.config();
 
+// Auto-reloaded for schema synchronization
 const app = express();
 const PORT = process.env.PORT || 5000;
 
