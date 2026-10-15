@@ -1,5 +1,6 @@
 import prisma from '../db/prisma';
 import { UpdateSalaryInput, SalaryDTO } from 'shared-types';
+import { analyticsService } from './analytics.service';
 
 export class SalaryService {
   async updateSalary(employeeId: string, input: UpdateSalaryInput): Promise<SalaryDTO> {
@@ -106,6 +107,9 @@ export class SalaryService {
         netSalaryUSD: Math.round(newSalary.netSalary * rate)
       };
     });
+
+    // Invalidate cached analytics when a compensation modification is committed
+    analyticsService.clearCache();
 
     return result;
   }

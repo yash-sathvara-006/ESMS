@@ -15,6 +15,7 @@ export class AnalyticsController {
   async getTimeframe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await analyticsService.getTimeframe();
+      res.setHeader('Cache-Control', 'private, max-age=300');
       res.json({ status: 'success', data });
     } catch (error) {
       next(error);
@@ -24,6 +25,7 @@ export class AnalyticsController {
   async getSummary(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await analyticsService.getSummary(extractFilter(req));
+      res.setHeader('Cache-Control', 'private, max-age=30');
       res.json({ status: 'success', data });
     } catch (error) {
       next(error);
@@ -33,6 +35,7 @@ export class AnalyticsController {
   async getDepartmentSpend(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await analyticsService.getDepartmentSpend(extractFilter(req));
+      res.setHeader('Cache-Control', 'private, max-age=30');
       res.json({ status: 'success', data });
     } catch (error) {
       next(error);
@@ -42,6 +45,7 @@ export class AnalyticsController {
   async getCountrySpend(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await analyticsService.getCountrySpend(extractFilter(req));
+      res.setHeader('Cache-Control', 'private, max-age=30');
       res.json({ status: 'success', data });
     } catch (error) {
       next(error);
@@ -51,6 +55,7 @@ export class AnalyticsController {
   async getPayEquity(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await analyticsService.getPayEquity(extractFilter(req));
+      res.setHeader('Cache-Control', 'private, max-age=30');
       res.json({ status: 'success', data });
     } catch (error) {
       next(error);
@@ -60,6 +65,7 @@ export class AnalyticsController {
   async getSalaryBands(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await analyticsService.getSalaryBands(extractFilter(req));
+      res.setHeader('Cache-Control', 'private, max-age=30');
       res.json({ status: 'success', data });
     } catch (error) {
       next(error);

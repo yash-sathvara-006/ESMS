@@ -13,11 +13,44 @@ export interface AnalyticsFilterOptions {
   month?: number;
 }
 
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+
 export class AnalyticsService {
+  // In-memory cache with 60-second TTL
+  private static cache = new Map<string, CacheEntry<any>>();
+  // Promise deduplication: ensures concurrent API calls share the exact same DB query promise
+  private static inflight = new Map<string, Promise<any>>();
+  private static readonly TTL_MS = 60 * 1000; // 60 seconds
+
+  /**
+   * Clears in-memory analytics cache.
+   * Invoked automatically whenever employee salaries are updated.
+   */
+  clearCache(): void {
+    AnalyticsService.cache.clear();
+    AnalyticsService.inflight.clear();
+  }
+
+  /**
+   * Helper to generate consistent cache keys
+   */
+  private getFilterKey(filter?: AnalyticsFilterOptions): string {
+    return filter ? `${filter.year ?? 'all'}_${filter.month ?? 'all'}` : 'all';
+  }
+
   /**
    * Returns available years and current month/year based on employee hire dates in the DB
    */
   async getTimeframe(): Promise<AnalyticsTimeframeDTO> {
+    const cacheKey = 'timeframe';
+    const cached = AnalyticsService.cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+
     const oldest = await prisma.employee.findFirst({
       orderBy: { hireDate: 'asc' },
       select: { hireDate: true }
@@ -39,65 +72,110 @@ export class AnalyticsService {
       years.push(y);
     }
 
-    return {
+    const result: AnalyticsTimeframeDTO = {
       years,
       currentYear,
       currentMonth,
       minYear,
       maxYear
     };
+
+    // Cache timeframe for 10 minutes
+    AnalyticsService.cache.set(cacheKey, {
+      data: result,
+      expiresAt: Date.now() + 10 * 60 * 1000
+    });
+
+    return result;
   }
 
   /**
    * Helper: Fetches all active employees with their current salary, country, and department
-   * Optionally filtered by year and month (hireDate <= target month/year)
+   * Uses Single-Flight Promise Deduplication so concurrent Dashboard API calls only query SQLite once!
    */
   private async getActiveEmployeesWithSalaries(filter?: AnalyticsFilterOptions) {
-    let hireDateFilter: any = undefined;
+    const filterKey = this.getFilterKey(filter);
+    const cacheKey = `employees_${filterKey}`;
 
-    if (filter?.year) {
-      const year = filter.year;
-      const month = filter.month; // 1-12 or undefined
-      let asOfDate: Date;
-
-      if (month && month >= 1 && month <= 12) {
-        asOfDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-      } else {
-        asOfDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
-      }
-
-      hireDateFilter = { lte: asOfDate };
+    // 1. Fast path: In-memory cache hit (0ms)
+    const cached = AnalyticsService.cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
     }
 
-    return prisma.employee.findMany({
-      where: {
-        status: 'ACTIVE',
-        ...(hireDateFilter ? { hireDate: hireDateFilter } : {})
-      },
-      select: {
-        id: true,
-        gender: true,
-        departmentId: true,
-        department: {
-          select: { id: true, code: true, name: true }
-        },
-        countryId: true,
-        country: {
-          select: { id: true, code: true, name: true, currency: true, exchangeRateToUSD: true }
-        },
-        salaries: {
-          where: { isCurrent: true },
-          select: { baseSalary: true, netSalary: true, bonus: true, currency: true },
-          take: 1
+    // 2. Concurrency path: If a query is already running for this key, hook into the same promise!
+    if (AnalyticsService.inflight.has(cacheKey)) {
+      return AnalyticsService.inflight.get(cacheKey)!;
+    }
+
+    // 3. Database fetch with Single-Flight Guard
+    const queryPromise = (async () => {
+      try {
+        let hireDateFilter: any = undefined;
+
+        if (filter?.year) {
+          const year = filter.year;
+          const month = filter.month; // 1-12 or undefined
+          let asOfDate: Date;
+
+          if (month && month >= 1 && month <= 12) {
+            asOfDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+          } else {
+            asOfDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+          }
+
+          hireDateFilter = { lte: asOfDate };
         }
+
+        const data = await prisma.employee.findMany({
+          where: {
+            status: 'ACTIVE',
+            ...(hireDateFilter ? { hireDate: hireDateFilter } : {})
+          },
+          select: {
+            id: true,
+            gender: true,
+            departmentId: true,
+            department: {
+              select: { id: true, code: true, name: true }
+            },
+            countryId: true,
+            country: {
+              select: { id: true, code: true, name: true, currency: true, exchangeRateToUSD: true }
+            },
+            salaries: {
+              where: { isCurrent: true },
+              select: { baseSalary: true, netSalary: true, bonus: true, currency: true },
+              take: 1
+            }
+          }
+        });
+
+        // Store result in in-memory cache
+        AnalyticsService.cache.set(cacheKey, {
+          data,
+          expiresAt: Date.now() + AnalyticsService.TTL_MS
+        });
+
+        return data;
+      } finally {
+        AnalyticsService.inflight.delete(cacheKey);
       }
-    });
+    })();
+
+    AnalyticsService.inflight.set(cacheKey, queryPromise);
+    return queryPromise;
   }
 
   /**
    * 1. Executive Summary KPIs: Total spend, average, median, headcount
    */
   async getSummary(filter?: AnalyticsFilterOptions): Promise<AnalyticsSummaryDTO> {
+    const summaryKey = `summary_${this.getFilterKey(filter)}`;
+    const cached = AnalyticsService.cache.get(summaryKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
     const employees = await this.getActiveEmployeesWithSalaries(filter);
     const totalHeadcount = employees.length;
 
@@ -138,7 +216,7 @@ export class AnalyticsService {
         ? usdSalaries[mid]!
         : ((usdSalaries[mid - 1]! + usdSalaries[mid]!) / 2);
 
-    return {
+    const result: AnalyticsSummaryDTO = {
       totalHeadcount,
       totalAnnualPayrollUSD: Math.round(totalPayrollUSD),
       averageSalaryUSD: Math.round(totalPayrollUSD / (usdSalaries.length || 1)),
@@ -146,12 +224,25 @@ export class AnalyticsService {
       totalDepartments: departmentIds.size,
       totalCountries: countryIds.size
     };
+
+    AnalyticsService.cache.set(summaryKey, {
+      data: result,
+      expiresAt: Date.now() + AnalyticsService.TTL_MS
+    });
+
+    return result;
   }
 
   /**
    * 2. Department Breakdown: Which department spends the most and what are their salary spreads?
    */
   async getDepartmentSpend(filter?: AnalyticsFilterOptions): Promise<DepartmentSpendDTO[]> {
+    const cacheKey = `dept_${this.getFilterKey(filter)}`;
+    const cached = AnalyticsService.cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+
     const employees = await this.getActiveEmployeesWithSalaries(filter);
     const deptMap = new Map<
       string,
@@ -211,13 +302,25 @@ export class AnalyticsService {
       });
     }
 
-    return results.sort((a, b) => b.totalPayrollUSD - a.totalPayrollUSD);
+    const sorted = results.sort((a, b) => b.totalPayrollUSD - a.totalPayrollUSD);
+    AnalyticsService.cache.set(cacheKey, {
+      data: sorted,
+      expiresAt: Date.now() + AnalyticsService.TTL_MS
+    });
+
+    return sorted;
   }
 
   /**
    * 3. Country Breakdown: How much does the organization pay in each global jurisdiction?
    */
   async getCountrySpend(filter?: AnalyticsFilterOptions): Promise<CountrySpendDTO[]> {
+    const cacheKey = `country_${this.getFilterKey(filter)}`;
+    const cached = AnalyticsService.cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+
     const employees = await this.getActiveEmployeesWithSalaries(filter);
     const countryMap = new Map<
       string,
@@ -280,13 +383,25 @@ export class AnalyticsService {
       });
     }
 
-    return results.sort((a, b) => b.totalPayrollUSD - a.totalPayrollUSD);
+    const sorted = results.sort((a, b) => b.totalPayrollUSD - a.totalPayrollUSD);
+    AnalyticsService.cache.set(cacheKey, {
+      data: sorted,
+      expiresAt: Date.now() + AnalyticsService.TTL_MS
+    });
+
+    return sorted;
   }
 
   /**
    * 4. Pay Equity Insights: Gender compensation comparison per department
    */
   async getPayEquity(filter?: AnalyticsFilterOptions): Promise<PayEquityDTO[]> {
+    const cacheKey = `equity_${this.getFilterKey(filter)}`;
+    const cached = AnalyticsService.cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+
     const employees = await this.getActiveEmployeesWithSalaries(filter);
     const equityMap = new Map<
       string,
@@ -340,13 +455,25 @@ export class AnalyticsService {
       });
     }
 
-    return results.sort((a, b) => a.departmentName.localeCompare(b.departmentName));
+    const sorted = results.sort((a, b) => a.departmentName.localeCompare(b.departmentName));
+    AnalyticsService.cache.set(cacheKey, {
+      data: sorted,
+      expiresAt: Date.now() + AnalyticsService.TTL_MS
+    });
+
+    return sorted;
   }
 
   /**
    * 5. Salary Band Distribution: The organizational compensation bell curve
    */
   async getSalaryBands(filter?: AnalyticsFilterOptions): Promise<SalaryBandDTO[]> {
+    const cacheKey = `bands_${this.getFilterKey(filter)}`;
+    const cached = AnalyticsService.cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+
     const employees = await this.getActiveEmployeesWithSalaries(filter);
     const total = employees.length || 1;
 
@@ -370,10 +497,17 @@ export class AnalyticsService {
       }
     }
 
-    return bands.map((b) => ({
+    const result = bands.map((b) => ({
       ...b,
       percentage: Number(((b.count / total) * 100).toFixed(2))
     }));
+
+    AnalyticsService.cache.set(cacheKey, {
+      data: result,
+      expiresAt: Date.now() + AnalyticsService.TTL_MS
+    });
+
+    return result;
   }
 }
 
