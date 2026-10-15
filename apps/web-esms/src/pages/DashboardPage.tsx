@@ -14,7 +14,7 @@ import { Button } from '../components/ui/Button';
 import { DataTable, type ColumnDef } from '../components/ui/DataTable';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { Skeleton } from '../components/ui/Skeleton';
-import { MonthYearPicker, MONTHS } from '../components/ui/MonthYearPicker';
+import { MonthYearPicker } from '../components/ui/MonthYearPicker';
 import { RotateCcw } from 'lucide-react';
 import {
   Chart as ChartJS,
