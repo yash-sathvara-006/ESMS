@@ -90,4 +90,28 @@ describe('Suite 5: End-to-End API Integration & HTTP Contract Tests', () => {
     expect(Array.isArray(res.body.errors)).toBe(true);
     expect(res.body.errors.length).toBeGreaterThan(0);
   });
+
+  it('8. GET /api/analytics/timeframe returns dynamically derived available years and current period', async () => {
+    const res = await request(app).get('/api/analytics/timeframe');
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('success');
+    expect(Array.isArray(res.body.data.years)).toBe(true);
+    expect(res.body.data.years.length).toBeGreaterThan(0);
+    expect(res.body.data.currentYear).toBeGreaterThanOrEqual(2024);
+    expect(res.body.data.currentMonth).toBeGreaterThanOrEqual(1);
+    expect(res.body.data.currentMonth).toBeLessThanOrEqual(12);
+    expect(res.body.data.minYear).toBeLessThanOrEqual(res.body.data.maxYear);
+  });
+
+  it('9. GET /api/analytics/summary?year=2024&month=6 filters headcount as of that period', async () => {
+    const res = await request(app).get('/api/analytics/summary?year=2024&month=6');
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('success');
+    // Headcount hired before mid-2024 should be less than total 10,000
+    expect(res.body.data.totalHeadcount).toBeGreaterThan(0);
+    expect(res.body.data.totalHeadcount).toBeLessThanOrEqual(10000);
+    expect(res.body.data.averageSalaryUSD).toBeGreaterThan(0);
+  });
 });

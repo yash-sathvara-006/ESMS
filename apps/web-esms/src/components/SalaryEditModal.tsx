@@ -1,4 +1,4 @@
-import React, { useState, useEffect, type FormEvent } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useId, type FormEvent } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -40,6 +40,11 @@ export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({
   onClose,
   onSalaryUpdated
 }) => {
+  const baseSalaryId = useId();
+  const bonusId = useId();
+  const changeReasonId = useId();
+  const changedById = useId();
+
   const [baseSalary, setBaseSalary] = useState<number | ''>(0);
   const [bonus, setBonus] = useState<number | ''>(0);
   const [deductionItems, setDeductionItems] = useState<LocalDeductionItem[]>([]);
@@ -80,47 +85,53 @@ export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({
     }
   }, [employee]);
 
-  if (!employee) return null;
-
-  const currentSal = employee.currentSalary;
+  const currentSal = employee?.currentSalary;
   const currency = currentSal?.currency || 'USD';
 
-  const totalDeductions = deductionItems.reduce(
-    (sum, item) => sum + (Number(item.amount) || 0),
-    0
-  );
+  // Memoized live deduction calculation
+  const totalDeductions = useMemo(() => {
+    return deductionItems.reduce(
+      (sum, item) => sum + (Number(item.amount) || 0),
+      0
+    );
+  }, [deductionItems]);
 
-  const calculatedNet = Math.max(
-    0,
-    Number(baseSalary || 0) + Number(bonus || 0) - totalDeductions
-  );
+  // Memoized live net take-home calculation
+  const calculatedNet = useMemo(() => {
+    return Math.max(
+      0,
+      Number(baseSalary || 0) + Number(bonus || 0) - totalDeductions
+    );
+  }, [baseSalary, bonus, totalDeductions]);
 
-  const formatCurrency = (val: number) => {
+  const formatCurrency = useCallback((val: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency,
       maximumFractionDigits: 0
     }).format(val);
-  };
+  }, [currency]);
 
-  const handleAddItem = () => {
+  const handleAddItem = useCallback(() => {
     setDeductionItems((prev) => [
       ...prev,
       { category: 'TAX', label: '', amount: '' }
     ]);
-  };
+  }, []);
 
-  const handleRemoveItem = (index: number) => {
+  const handleRemoveItem = useCallback((index: number) => {
     setDeductionItems((prev) => prev.filter((_, idx) => idx !== index));
-  };
+  }, []);
 
-  const handleItemChange = (index: number, field: keyof LocalDeductionItem, val: any) => {
+  const handleItemChange = useCallback((index: number, field: keyof LocalDeductionItem, val: any) => {
     setDeductionItems((prev) => {
       const copy = [...prev];
       copy[index] = { ...copy[index], [field]: val };
       return copy;
     });
-  };
+  }, []);
+
+  if (!employee) return null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -250,6 +261,7 @@ export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({
           {/* New Base & Bonus Inputs */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
             <Input
+              id={baseSalaryId}
               label={`Base Salary (${currency})`}
               type="number"
               min="1"
@@ -258,6 +270,7 @@ export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({
               onChange={(e) => setBaseSalary(e.target.value === '' ? '' : Number(e.target.value))}
             />
             <Input
+              id={bonusId}
               label={`Bonus (${currency})`}
               type="number"
               min="0"
@@ -438,6 +451,7 @@ export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({
 
           {/* Reason for Audit Log */}
           <Input
+            id={changeReasonId}
             label="Reason for Adjustment"
             required
             placeholder="e.g. Annual Merit Promotion, Tax Bracket Update"
@@ -447,6 +461,7 @@ export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({
           />
 
           <Input
+            id={changedById}
             label="Authorized By"
             required
             value={changedBy}

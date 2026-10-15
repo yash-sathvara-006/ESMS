@@ -110,25 +110,25 @@ export class EmployeeService {
         },
         currentSalary: currentSal
           ? {
-              id: currentSal.id,
-              employeeId: currentSal.employeeId,
-              baseSalary: currentSal.baseSalary,
-              bonus: currentSal.bonus,
-              deductions: currentSal.deductions,
-              netSalary: currentSal.netSalary,
-              currency: currentSal.currency,
-              effectiveDate: currentSal.effectiveDate.toISOString(),
-              isCurrent: currentSal.isCurrent,
-              deductionItems: (currentSal as any).deductionItems?.map((d: any) => ({
-                id: d.id,
-                salaryId: d.salaryId,
-                category: d.category,
-                label: d.label,
-                amount: d.amount
-              })) || [],
-              baseSalaryUSD: Math.round(currentSal.baseSalary * rate),
-              netSalaryUSD: Math.round(currentSal.netSalary * rate)
-            }
+            id: currentSal.id,
+            employeeId: currentSal.employeeId,
+            baseSalary: currentSal.baseSalary,
+            bonus: currentSal.bonus,
+            deductions: currentSal.deductions,
+            netSalary: currentSal.netSalary,
+            currency: currentSal.currency,
+            effectiveDate: currentSal.effectiveDate.toISOString(),
+            isCurrent: currentSal.isCurrent,
+            deductionItems: (currentSal as any).deductionItems?.map((d: any) => ({
+              id: d.id,
+              salaryId: d.salaryId,
+              category: d.category,
+              label: d.label,
+              amount: d.amount
+            })) || [],
+            baseSalaryUSD: Math.round(currentSal.baseSalary * rate),
+            netSalaryUSD: Math.round(currentSal.netSalary * rate)
+          }
           : null
       };
     });
@@ -199,25 +199,25 @@ export class EmployeeService {
       },
       currentSalary: currentSal
         ? {
-            id: currentSal.id,
-            employeeId: currentSal.employeeId,
-            baseSalary: currentSal.baseSalary,
-            bonus: currentSal.bonus,
-            deductions: currentSal.deductions,
-            netSalary: currentSal.netSalary,
-            currency: currentSal.currency,
-            effectiveDate: currentSal.effectiveDate.toISOString(),
-            isCurrent: currentSal.isCurrent,
-            deductionItems: (currentSal as any).deductionItems?.map((d: any) => ({
-              id: d.id,
-              salaryId: d.salaryId,
-              category: d.category,
-              label: d.label,
-              amount: d.amount
-            })) || [],
-            baseSalaryUSD: Math.round(currentSal.baseSalary * rate),
-            netSalaryUSD: Math.round(currentSal.netSalary * rate)
-          }
+          id: currentSal.id,
+          employeeId: currentSal.employeeId,
+          baseSalary: currentSal.baseSalary,
+          bonus: currentSal.bonus,
+          deductions: currentSal.deductions,
+          netSalary: currentSal.netSalary,
+          currency: currentSal.currency,
+          effectiveDate: currentSal.effectiveDate.toISOString(),
+          isCurrent: currentSal.isCurrent,
+          deductionItems: (currentSal as any).deductionItems?.map((d: any) => ({
+            id: d.id,
+            salaryId: d.salaryId,
+            category: d.category,
+            label: d.label,
+            amount: d.amount
+          })) || [],
+          baseSalaryUSD: Math.round(currentSal.baseSalary * rate),
+          netSalaryUSD: Math.round(currentSal.netSalary * rate)
+        }
         : null,
       salaryAuditLogs: emp.salaryAuditLogs.map((log) => ({
         id: log.id,

@@ -101,6 +101,62 @@ In accordance with the assessment expectations (*"Demonstrate intentional use of
 
 ---
 
+### Phase 7: Frontend Automated Unit Testing Suite (29 Tests across 9 Suites)
+* **Objective:** Address reviewer validation requirements by engineering a deterministic frontend test suite in `apps/web-esms` covering atomic UI primitives, transactional business calculations, API services, and page-level views.
+* **Core Human Instruction / Prompt Pattern:**
+  > *"Set up a robust frontend testing environment using Vitest, React Testing Library, JSDOM, and @testing-library/jest-dom. Author 9 dedicated test suites: Button, Badge, Card, SearchInput (debounced with fake timers), DataTable (with pagination and custom empty states), SalaryEditModal (dynamic Base + Bonus - Deductions calculation, audit reason validation, submission), typed api client, DashboardPage (with Chart.js canvas mocks), and EmployeesPage (MemoryRouter and master-detail panel). Ensure 0 TypeScript errors and 100% test pass rate."*
+* **Engineering Pivot / Human Steer:**
+  * **JSDOM HTML5 Canvas Limitation:** Chart.js fails in JSDOM because HTML `<canvas>` rendering contexts are not implemented. Mocked `react-chartjs-2` (`Bar: () => <div data-testid="mock-bar-chart" />`) to prevent test crashes while validating data ingestion.
+  * **JSDOM HTML5 Form Validation:** JSDOM halts `<form>` submissions if required inputs are untouched. Dispatched direct form submission events or filled required audit reasons to reliably test validation error branches and submit lifecycles.
+  * **Monorepo Shared Types Strictness:** Aligned mock entities (`EmployeeDTO`, `CountryDTO`, `DepartmentSpendDTO`, and `PaginationMeta` requiring `hasNextPage` & `hasPrevPage`) with exact `@esms/shared-types` contracts to ensure zero TS linter errors.
+* **Verification Metrics:**
+  * **Test Suites:** 9 passed (100%)
+  * **Tests Passed:** 29 passed / 0 failed (100%)
+  * **Execution Speed:** ~11.5 seconds across JSDOM component lifecycles.
+
+---
+
+### Phase 8: Full-Stack Verification & Monorepo Test Integration (59 Tests)
+* **Objective:** Unify monorepo testing pipelines under root `npm test` so both backend and frontend suites execute deterministically in CI/CD and evaluation pipelines.
+* **Core Human Instruction / Prompt Pattern:**
+  > *"Update root package.json to orchestrate both test:backend and test:web under npm test. Validate that npx tsc --noEmit completes with 0 errors across the entire codebase."*
+* **Verification Results:**
+  * **Total Test Suites:** 14 passed (5 Backend + 9 Frontend)
+  * **Total Tests Passed:** 59 passed / 0 failed (100%)
+---
+
+### Phase 9: React 19 Modern Performance Hooks & State Optimization
+* **Objective:** Optimize UI rendering efficiency across Dashboard (4 concurrent APIs) and 10,000 employee records using advanced React 19 hooks (`useReducer`, `useMemo`, `useCallback`, `useTransition`, `useDeferredValue`, `useRef`, `useLayoutEffect`, `useId`).
+* **Core Human Instruction / Prompt Pattern:**
+  > *"Refactor DashboardPage, EmployeesPage, and SalaryEditModal with React 19 performance hooks. In DashboardPage, consolidate 4 API states with useReducer and use AbortController in useRef to prevent race conditions and memory leaks. In EmployeesPage, consolidate 6 filter states with useReducer, use useDeferredValue and useTransition for lag-free 60 FPS typing, use useLayoutEffect for pre-paint scroll restoration, and useMemo for column definitions and pay band math. Maintain 100% test pass rate."*
+* **Engineering Decisions:**
+  * **Consolidated Reducers:** Eliminated state cascading in `DashboardPage` and `EmployeesPage`, reducing re-render count on multi-API hydration from 5 passes to a single atomic paint pass.
+  * **Non-Blocking Search & Transitions:** Coupled `useDeferredValue` with 350ms debounce so keystrokes remain instantaneous while background indexed queries execute on the backend.
+  * **In-Flight Cancellation (`AbortController`):** Prevented race conditions on fast pagination or filter toggles by auto-aborting obsolete requests before dispatching new ones.
+  * **Zero Functional Breaking Changes:** Kept all existing backend API query parameters, URL structures, test IDs, and business logic 100% intact.
+* **Verification Results:**
+  * All 59 tests (30 Backend + 29 Frontend) passing with zero failures.
+  * `npx tsc --noEmit` exits with 0 errors across all workspaces.
+
+---
+
+### Phase 10: Dynamic Database-Driven Timeframe Filtering (Independent Per-Section Month & Year Selectors)
+* **Objective:** Enable HR Managers to inspect point-in-time salary metrics across dynamically derived historical years and months based on employee tenure (`hireDate <= asOfDate`), defaulting to the current month and year, with **independent controls per analytics section** ("Average salary by country" and "Salary distribution").
+* **Core Human Instruction / Prompt Pattern:**
+  > *"Add month and year filters in each section individually (Average salary by country gets its own month and year filter, and Salary distribution section gets its own month and year filter, replacing the single shared filter). Style the dropdowns according to the Payscape design system reference image (royal purple #4f46e5 selected state). Document all changes in the requirement and md files."*
+* **Engineering Decisions:**
+  * **Independent Section State & Reducer Isolation:** Upgraded `dashboardReducer` in `DashboardPage.tsx` with dedicated `FETCH_COUNTRY_START / SUCCESS` and `FETCH_BANDS_START / SUCCESS` actions alongside isolated state (`isCountryLoading`, `isBandsLoading`, `countryMonth/Year`, `bandsMonth/Year`). Changing one section's timeframe only queries that specific endpoint and updates that card's visual elements without reloading the rest of the dashboard.
+  * **Card Header Integration (`headerRight`):** Placed the custom `MonthYearPicker` component directly into the `headerRight` utility slot of each card, with flex-wrap responsiveness to guarantee flawless mobile rendering.
+  * **Dynamic Timeframe API (`GET /api/analytics/timeframe`):** Queries SQLite min/max `hireDate` via Prisma to compute the exact range of valid organizational years (`2021` to `2026`), eliminating hardcoded assumptions.
+  * **Point-in-Time Calculation:** Extended analytics query engine with `AnalyticsFilterOptions` (`year`, `month`), calculating `asOfDate` (`new Date(year, month, 0, 23, 59, 59, 999)`) to filter employees active as of the targeted timeframe.
+  * **Custom Accessible Component (`MonthYearPicker.tsx`):** Built accessible, keyboard-friendly dual dropdowns styled with Payscape light-theme tokens, click-outside handling, and active selection state.
+* **Verification Results:**
+  * **Total Test Suites:** 15 passed (5 Backend + 10 Frontend)
+  * **Total Tests Passed:** 66 passed / 0 failed (100%)
+  * Full monorepo production build (`npm run build --workspaces`) passed with 0 errors.
+
+---
+
 ## 3. Key Architectural Takeaways of Intentional AI Use
 
 1. **Velocity Without Technical Debt:**

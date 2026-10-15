@@ -12,8 +12,9 @@
         "dev:backend": "npm run dev --workspace=apps/backend-esms",
         "dev:web": "npm run dev --workspace=apps/web-esms",
         "build": "npm run build --workspaces",
-        "test": "npm run test --workspace=apps/backend-esms",
+        "test": "npm run test:backend && npm run test:web",
         "test:backend": "npm run test --workspace=apps/backend-esms",
+        "test:web": "npm run test --workspace=apps/web-esms",
         "db:migrate": "npm run db:migrate --workspace=apps/backend-esms",
         "db:seed": "npm run db:seed --workspace=apps/backend-esms",
         "db:studio": "npm run db:studio --workspace=apps/backend-esms"

@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
 export interface CardProps {
+  id?: string;
   title?: string;
   subtitle?: string;
   headerRight?: React.ReactNode;
@@ -14,6 +15,7 @@ export interface CardProps {
 }
 
 export const Card: React.FC<CardProps> = ({
+  id,
   title,
   subtitle,
   headerRight,
@@ -35,6 +37,7 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <Paper
+      id={id}
       elevation={0}
       sx={{
         backgroundColor: '#ffffff',
@@ -56,8 +59,10 @@ export const Card: React.FC<CardProps> = ({
             pt: headerPt,
             pb: headerPb,
             display: 'flex',
-            alignItems: 'center',
+            alignItems: { xs: 'flex-start', sm: 'center' },
             justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            rowGap: 1.5,
             borderBottom: padding === 'none' ? '1px solid #f1f5f9' : 'none',
             gap: 2
           }}

@@ -4,17 +4,76 @@ import {
   DepartmentSpendDTO,
   CountrySpendDTO,
   PayEquityDTO,
-  SalaryBandDTO
+  SalaryBandDTO,
+  AnalyticsTimeframeDTO
 } from 'shared-types';
+
+export interface AnalyticsFilterOptions {
+  year?: number;
+  month?: number;
+}
 
 export class AnalyticsService {
   /**
-   * Helper: Fetches all active employees with their current salary, country, and department
-   * In SQLite with 10k rows, this loads in memory in ~8-15ms for instant aggregation
+   * Returns available years and current month/year based on employee hire dates in the DB
    */
-  private async getActiveEmployeesWithSalaries() {
+  async getTimeframe(): Promise<AnalyticsTimeframeDTO> {
+    const oldest = await prisma.employee.findFirst({
+      orderBy: { hireDate: 'asc' },
+      select: { hireDate: true }
+    });
+    const newest = await prisma.employee.findFirst({
+      orderBy: { hireDate: 'desc' },
+      select: { hireDate: true }
+    });
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+
+    const minYear = oldest?.hireDate ? oldest.hireDate.getFullYear() : 2021;
+    const maxYear = Math.max(newest?.hireDate ? newest.hireDate.getFullYear() : currentYear, currentYear);
+
+    const years: number[] = [];
+    for (let y = maxYear; y >= minYear; y--) {
+      years.push(y);
+    }
+
+    return {
+      years,
+      currentYear,
+      currentMonth,
+      minYear,
+      maxYear
+    };
+  }
+
+  /**
+   * Helper: Fetches all active employees with their current salary, country, and department
+   * Optionally filtered by year and month (hireDate <= target month/year)
+   */
+  private async getActiveEmployeesWithSalaries(filter?: AnalyticsFilterOptions) {
+    let hireDateFilter: any = undefined;
+
+    if (filter?.year) {
+      const year = filter.year;
+      const month = filter.month; // 1-12 or undefined
+      let asOfDate: Date;
+
+      if (month && month >= 1 && month <= 12) {
+        asOfDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+      } else {
+        asOfDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+      }
+
+      hireDateFilter = { lte: asOfDate };
+    }
+
     return prisma.employee.findMany({
-      where: { status: 'ACTIVE' },
+      where: {
+        status: 'ACTIVE',
+        ...(hireDateFilter ? { hireDate: hireDateFilter } : {})
+      },
       select: {
         id: true,
         gender: true,
@@ -38,8 +97,8 @@ export class AnalyticsService {
   /**
    * 1. Executive Summary KPIs: Total spend, average, median, headcount
    */
-  async getSummary(): Promise<AnalyticsSummaryDTO> {
-    const employees = await this.getActiveEmployeesWithSalaries();
+  async getSummary(filter?: AnalyticsFilterOptions): Promise<AnalyticsSummaryDTO> {
+    const employees = await this.getActiveEmployeesWithSalaries(filter);
     const totalHeadcount = employees.length;
 
     if (totalHeadcount === 0) {
@@ -92,8 +151,8 @@ export class AnalyticsService {
   /**
    * 2. Department Breakdown: Which department spends the most and what are their salary spreads?
    */
-  async getDepartmentSpend(): Promise<DepartmentSpendDTO[]> {
-    const employees = await this.getActiveEmployeesWithSalaries();
+  async getDepartmentSpend(filter?: AnalyticsFilterOptions): Promise<DepartmentSpendDTO[]> {
+    const employees = await this.getActiveEmployeesWithSalaries(filter);
     const deptMap = new Map<
       string,
       {
@@ -158,8 +217,8 @@ export class AnalyticsService {
   /**
    * 3. Country Breakdown: How much does the organization pay in each global jurisdiction?
    */
-  async getCountrySpend(): Promise<CountrySpendDTO[]> {
-    const employees = await this.getActiveEmployeesWithSalaries();
+  async getCountrySpend(filter?: AnalyticsFilterOptions): Promise<CountrySpendDTO[]> {
+    const employees = await this.getActiveEmployeesWithSalaries(filter);
     const countryMap = new Map<
       string,
       {
@@ -227,8 +286,8 @@ export class AnalyticsService {
   /**
    * 4. Pay Equity Insights: Gender compensation comparison per department
    */
-  async getPayEquity(): Promise<PayEquityDTO[]> {
-    const employees = await this.getActiveEmployeesWithSalaries();
+  async getPayEquity(filter?: AnalyticsFilterOptions): Promise<PayEquityDTO[]> {
+    const employees = await this.getActiveEmployeesWithSalaries(filter);
     const equityMap = new Map<
       string,
       {
@@ -287,8 +346,8 @@ export class AnalyticsService {
   /**
    * 5. Salary Band Distribution: The organizational compensation bell curve
    */
-  async getSalaryBands(): Promise<SalaryBandDTO[]> {
-    const employees = await this.getActiveEmployeesWithSalaries();
+  async getSalaryBands(filter?: AnalyticsFilterOptions): Promise<SalaryBandDTO[]> {
+    const employees = await this.getActiveEmployeesWithSalaries(filter);
     const total = employees.length || 1;
 
     const bands = [

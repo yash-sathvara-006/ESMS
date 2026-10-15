@@ -1,4 +1,15 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useReducer,
+  useDeferredValue,
+  useTransition,
+  useRef,
+  useLayoutEffect,
+  useId
+} from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -21,69 +32,135 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SalaryEditModal } from '../components/SalaryEditModal';
 import { useDebounce } from '../hooks/useDebounce';
-import { /* Plus, */ Download, /* Upload, */ Edit3, User, Phone, RotateCcw, Receipt } from 'lucide-react';
+import { Download, Edit3, User, Phone, RotateCcw, Receipt } from 'lucide-react';
+
+// ── Consolidated Filter & Pagination State Reducer ────────────────────────────
+interface FilterState {
+  searchTerm: string;
+  selectedDept: string;
+  selectedCountry: string;
+  selectedGender: string;
+  page: number;
+  limit: number;
+}
+
+type FilterAction =
+  | { type: 'SET_SEARCH'; payload: string }
+  | { type: 'SET_DEPARTMENT'; payload: string }
+  | { type: 'SET_COUNTRY'; payload: string }
+  | { type: 'SET_GENDER'; payload: string }
+  | { type: 'SET_PAGE'; payload: number }
+  | { type: 'SET_LIMIT'; payload: number }
+  | { type: 'CLEAR_FILTERS' };
+
+function filterReducer(state: FilterState, action: FilterAction): FilterState {
+  switch (action.type) {
+    case 'SET_SEARCH':
+      return { ...state, searchTerm: action.payload, page: 1 };
+    case 'SET_DEPARTMENT':
+      return { ...state, selectedDept: action.payload, page: 1 };
+    case 'SET_COUNTRY':
+      return { ...state, selectedCountry: action.payload, page: 1 };
+    case 'SET_GENDER':
+      return { ...state, selectedGender: action.payload, page: 1 };
+    case 'SET_PAGE':
+      return { ...state, page: action.payload };
+    case 'SET_LIMIT':
+      return { ...state, limit: action.payload, page: 1 };
+    case 'CLEAR_FILTERS':
+      return {
+        ...state,
+        searchTerm: '',
+        selectedDept: '',
+        selectedCountry: '',
+        selectedGender: '',
+        page: 1
+      };
+    default:
+      return state;
+  }
+}
 
 export const EmployeesPage: React.FC = () => {
   const [searchParams] = useSearchParams();
 
-  // ── Employee list ─────────────────────────────────────────────────────────
+  // ── Accessible Unique IDs ──────────────────────────────────────────────────
+  const searchInputId = useId();
+  const countrySelectId = useId();
+  const deptSelectId = useId();
+  const genderSelectId = useId();
+
+  // ── Reducer for Consolidated Filter & Pagination State ─────────────────────
+  const [filterState, dispatch] = useReducer(filterReducer, {
+    searchTerm: searchParams.get('search') || '',
+    selectedDept: searchParams.get('departmentId') || '',
+    selectedCountry: searchParams.get('countryId') || '',
+    selectedGender: '',
+    page: 1,
+    limit: 25
+  });
+
+  const { searchTerm, selectedDept, selectedCountry, selectedGender, page, limit } = filterState;
+
+  // ── Non-blocking Search with useDeferredValue & Debounce ───────────────────
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const debouncedSearch = useDebounce(deferredSearchTerm, 350);
+
+  // ── Non-blocking UI Transitions ────────────────────────────────────────────
+  const [isPendingTransition, startTransition] = useTransition();
+
+  // ── DOM References for Scroll Control & Request Cancellation ───────────────
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const apiAbortControllerRef = useRef<AbortController | null>(null);
+
+  // ── Employee list & metadata ───────────────────────────────────────────────
   const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ── Filter options ────────────────────────────────────────────────────────
+  // ── Filter dropdown options ────────────────────────────────────────────────
   const [departments, setDepartments] = useState<DepartmentDTO[]>([]);
   const [countries, setCountries] = useState<CountryDTO[]>([]);
   const [isLoadingFilters, setIsLoadingFilters] = useState(true);
 
-  // ── Active filters ────────────────────────────────────────────────────────
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const debouncedSearch = useDebounce(searchTerm, 350);
-  const [selectedDept, setSelectedDept] = useState(searchParams.get('departmentId') || '');
-  const [selectedCountry, setSelectedCountry] = useState(searchParams.get('countryId') || '');
-  const [selectedGender, setSelectedGender] = useState('');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
-
-  // Check if any filter or search is active
-  const hasActiveFilters = Boolean(
-    searchTerm.trim() !== '' ||
-    selectedDept !== '' ||
-    selectedCountry !== '' ||
-    selectedGender !== ''
-  );
-
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setSelectedDept('');
-    setSelectedCountry('');
-    setSelectedGender('');
-    setPage(1);
-  };
-
   // ── Export selection state ────────────────────────────────────────────────
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Reset page to 1 when search term debounce triggers
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
-
-  // Reset row selection when filters, search or page changes
-  useEffect(() => {
-    setSelectedExportIds(new Set());
-  }, [page, limit, debouncedSearch, selectedDept, selectedCountry, selectedGender]);
-
-  // ── Detail panel ──────────────────────────────────────────────────────────
+  // ── Detail panel state ─────────────────────────────────────────────────────
   const [selectedEmp, setSelectedEmp] = useState<EmployeeDTO | null>(null);
   const [empAuditLogs, setEmpAuditLogs] = useState<SalaryAuditLogDTO[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
-  // ── Salary modal ──────────────────────────────────────────────────────────
+  // ── Salary edit modal state ────────────────────────────────────────────────
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalEmployee, setModalEmployee] = useState<EmployeeDTO | null>(null);
 
-  // ── Load filter metadata once ─────────────────────────────────────────────
+  // ── Memoized Check for Active Filters ──────────────────────────────────────
+  const hasActiveFilters = useMemo(
+    () =>
+      Boolean(
+        searchTerm.trim() !== '' ||
+        selectedDept !== '' ||
+        selectedCountry !== '' ||
+        selectedGender !== ''
+      ),
+    [searchTerm, selectedDept, selectedCountry, selectedGender]
+  );
+
+  // ── Smooth Scroll on Page Change via useLayoutEffect ───────────────────────
+  useLayoutEffect(() => {
+    if (tableContainerRef.current && page > 1) {
+      tableContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [page]);
+
+  // Reset row selection whenever filters, search or page changes
+  useEffect(() => {
+    setSelectedExportIds(new Set());
+  }, [page, limit, debouncedSearch, selectedDept, selectedCountry, selectedGender]);
+
+  // ── Load filter metadata once on mount ─────────────────────────────────────
   useEffect(() => {
     setIsLoadingFilters(true);
     Promise.all([api.getDepartments(), api.getCountries()])
@@ -99,8 +176,15 @@ export const EmployeesPage: React.FC = () => {
       });
   }, []);
 
-  // ── Load employees (re-runs when any filter/page/limit changes) ───────────
+  // ── Load employees with in-flight cancellation via AbortController ─────────
   const loadEmployees = useCallback(async () => {
+    // Abort any prior in-flight pagination or filter requests
+    if (apiAbortControllerRef.current) {
+      apiAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    apiAbortControllerRef.current = controller;
+
     try {
       setIsLoading(true);
       const res = await api.getEmployees({
@@ -114,20 +198,31 @@ export const EmployeesPage: React.FC = () => {
         sortBy: 'employeeCode',
         sortOrder: 'asc'
       });
+
+      if (controller.signal.aborted) return;
       setEmployees(res.data);
       setMeta(res.meta);
     } catch (err: any) {
+      if (controller.signal.aborted) return;
       notify.error(`Failed to load employees: ${err.message}`);
     } finally {
-      setIsLoading(false);
+      if (!controller.signal.aborted) {
+        setIsLoading(false);
+      }
     }
   }, [page, limit, debouncedSearch, selectedDept, selectedCountry, selectedGender]);
 
   useEffect(() => {
     loadEmployees();
+
+    return () => {
+      if (apiAbortControllerRef.current) {
+        apiAbortControllerRef.current.abort();
+      }
+    };
   }, [loadEmployees]);
 
-  // ── Auto-select first employee if selectedEmp not in current list ─────────
+  // ── Auto-select first employee if current selection is not in list ─────────
   useEffect(() => {
     if (employees.length === 0) {
       setSelectedEmp(null);
@@ -142,7 +237,6 @@ export const EmployeesPage: React.FC = () => {
       if (match) {
         setSelectedEmp(match);
       } else {
-        // If current employee not in filtered list, select first filtered employee
         setSelectedEmp(employees[0]);
       }
     }
@@ -175,45 +269,55 @@ export const EmployeesPage: React.FC = () => {
     }
   }, [selectedEmp?.id, loadSalaryHistory]);
 
-  const handleEditEmployee = (emp: EmployeeDTO) => {
+  // ── Action Handlers wrapped in useCallback & Transitions ───────────────────
+  const handleClearFilters = useCallback(() => {
+    startTransition(() => {
+      dispatch({ type: 'CLEAR_FILTERS' });
+    });
+  }, []);
+
+  const handleEditEmployee = useCallback((emp: EmployeeDTO) => {
     setModalEmployee(emp);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleLimitChange = (newLimit: number) => {
-    setLimit(newLimit);
-    setPage(1); // Reset to page 1 when page size changes
-  };
+  const handleLimitChange = useCallback((newLimit: number) => {
+    startTransition(() => {
+      dispatch({ type: 'SET_LIMIT', payload: newLimit });
+    });
+  }, []);
 
-  const handleSalaryUpdated = async (updatedEmpId?: string) => {
+  const handlePageChange = useCallback((newPage: number) => {
+    startTransition(() => {
+      dispatch({ type: 'SET_PAGE', payload: newPage });
+    });
+  }, []);
+
+  const handleSalaryUpdated = useCallback(async (updatedEmpId?: string) => {
     const targetId = updatedEmpId || selectedEmp?.id;
-    // 1. Reload the employee table in background
     loadEmployees();
 
-    // 2. Immediately refresh the selected employee's details (base salary, gauge, etc.)
     if (targetId) {
       try {
         const res = await api.getEmployeeById(targetId);
         if (res.data) {
           setSelectedEmp(res.data);
         }
-        // 3. Immediately refresh salary history audit logs
         await loadSalaryHistory(targetId);
       } catch (err) {
         console.error('Error refreshing updated employee:', err);
       }
     }
-  };
+  }, [selectedEmp?.id, loadEmployees, loadSalaryHistory]);
 
-  const formatCurrency = (amount: number, currency: string) =>
+  const formatCurrency = useCallback((amount: number, currency: string) =>
     new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency || 'USD',
       maximumFractionDigits: 0
-    }).format(amount);
+    }).format(amount), []);
 
-  // ── Row selection handlers for CSV export ─────────────────────────────────
-  const handleSelectRow = (rowId: string) => {
+  const handleSelectRow = useCallback((rowId: string) => {
     setSelectedExportIds((prev) => {
       const next = new Set(prev);
       if (next.has(rowId)) {
@@ -223,9 +327,9 @@ export const EmployeesPage: React.FC = () => {
       }
       return next;
     });
-  };
+  }, []);
 
-  const handleSelectAll = (selectAll: boolean) => {
+  const handleSelectAll = useCallback((selectAll: boolean) => {
     if (selectAll) {
       const next = new Set(selectedExportIds);
       employees.forEach((emp) => next.add(emp.id));
@@ -235,12 +339,9 @@ export const EmployeesPage: React.FC = () => {
       employees.forEach((emp) => next.delete(emp.id));
       setSelectedExportIds(next);
     }
-  };
+  }, [employees, selectedExportIds]);
 
-  // ── Export selected / current page records to CSV via backend API ────────
-  const [isExporting, setIsExporting] = useState(false);
-
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     if (selectedExportIds.size === 0) return;
     try {
       setIsExporting(true);
@@ -266,10 +367,10 @@ export const EmployeesPage: React.FC = () => {
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [selectedExportIds]);
 
-  // ── Table columns ─────────────────────────────────────────────────────────
-  const columns: ColumnDef<EmployeeDTO>[] = [
+  // ── Memoized Table Column Definitions (Prevents Re-renders) ────────────────
+  const columns = useMemo<ColumnDef<EmployeeDTO>[]>(() => [
     {
       key: 'fullName',
       header: 'Employee',
@@ -326,19 +427,22 @@ export const EmployeesPage: React.FC = () => {
         />
       )
     }
-  ];
+  ], [formatCurrency]);
 
-  // ── Pay band gauge ────────────────────────────────────────────────────────
-  const curSalary = selectedEmp?.currentSalary?.baseSalary || 0;
-  const minBand = Math.round(curSalary * 0.7);
-  const maxBand = Math.round(curSalary * 1.4);
-  const bandPos = maxBand > minBand ? Math.round(((curSalary - minBand) / (maxBand - minBand)) * 100) : 50;
+  // ── Memoized Pay Band Gauge Calculations ───────────────────────────────────
+  const { minBand, maxBand, bandPos } = useMemo(() => {
+    const cur = selectedEmp?.currentSalary?.baseSalary || 0;
+    const min = Math.round(cur * 0.7);
+    const max = Math.round(cur * 1.4);
+    const pos = max > min ? Math.round(((cur - min) / (max - min)) * 100) : 50;
+    return { minBand: min, maxBand: max, bandPos: pos };
+  }, [selectedEmp?.currentSalary?.baseSalary]);
 
-  const formatDateSafe = (dateStr?: string) => {
+  const formatDateSafe = useCallback((dateStr?: string) => {
     if (!dateStr) return 'Current';
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? 'Current' : d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  };
+  }, []);
 
   // ── Unified salary history items (Always includes Current Active Salary) ──
   const salaryHistoryItems = useMemo(() => {
@@ -369,7 +473,6 @@ export const EmployeesPage: React.FC = () => {
 
     // 2. Historical changes (if any audit logs exist)
     if (empAuditLogs.length > 0) {
-      // Prior revisions
       for (let i = 1; i < empAuditLogs.length; i++) {
         items.push({
           id: empAuditLogs[i].id,
@@ -382,7 +485,6 @@ export const EmployeesPage: React.FC = () => {
         });
       }
 
-      // Initial contract salary prior to first revision
       const oldestLog = empAuditLogs[empAuditLogs.length - 1];
       if (oldestLog && oldestLog.previousBase > 0) {
         items.push({
@@ -400,24 +502,35 @@ export const EmployeesPage: React.FC = () => {
     return items;
   }, [selectedEmp, empAuditLogs]);
 
-  // ── Filter option arrays for Select ──────────────────────────────────────
-  const countryOptions = [
-    { value: '', label: 'All Countries' },
-    ...countries.map((c) => ({ value: c.id, label: c.name }))
-  ];
-  const deptOptions = [
-    { value: '', label: 'All Departments' },
-    ...departments.map((d) => ({ value: d.id, label: d.name }))
-  ];
-  const genderOptions = [
-    { value: '', label: 'All Genders' },
-    { value: 'MALE', label: 'Male' },
-    { value: 'FEMALE', label: 'Female' },
-    { value: 'NON_BINARY', label: 'Other' }
-  ];
+  // ── Memoized Filter Options for Select Inputs ─────────────────────────────
+  const countryOptions = useMemo(
+    () => [
+      { value: '', label: 'All Countries' },
+      ...countries.map((c) => ({ value: c.id, label: c.name }))
+    ],
+    [countries]
+  );
+
+  const deptOptions = useMemo(
+    () => [
+      { value: '', label: 'All Departments' },
+      ...departments.map((d) => ({ value: d.id, label: d.name }))
+    ],
+    [departments]
+  );
+
+  const genderOptions = useMemo(
+    () => [
+      { value: '', label: 'All Genders' },
+      { value: 'MALE', label: 'Male' },
+      { value: 'FEMALE', label: 'Female' },
+      { value: 'NON_BINARY', label: 'Other' }
+    ],
+    []
+  );
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, mx: 'auto' }} ref={tableContainerRef}>
       {/* Page Header */}
       <Box
         sx={{
@@ -439,10 +552,9 @@ export const EmployeesPage: React.FC = () => {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
-          {/* <Button variant="secondary" leftIcon={<Upload className="w-4 h-4 text-slate-500" />}>Import Excel</Button> */}
           <Button
             variant={hasActiveFilters ? 'primary' : 'secondary'}
-            leftIcon={<RotateCcw className={`w-4 h-4 ${hasActiveFilters ? 'text-white' : 'text-slate-400'}`} />}
+            leftIcon={<RotateCcw className={`w-4 h-4 ${hasActiveFilters ? 'text-white' : 'text-slate-400'} ${isPendingTransition ? 'animate-spin' : ''}`} />}
             onClick={handleClearFilters}
             disabled={!hasActiveFilters}
             className="flex-1 sm:flex-none justify-center"
@@ -458,7 +570,6 @@ export const EmployeesPage: React.FC = () => {
           >
             {isExporting ? 'Exporting...' : selectedExportIds.size > 0 ? `Export (${selectedExportIds.size})` : 'Export'}
           </Button>
-          {/* <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>Add employee</Button> */}
         </Box>
       </Box>
 
@@ -475,12 +586,13 @@ export const EmployeesPage: React.FC = () => {
           mb: 3
         }}
       >
-        {/* Search */}
+        {/* Search Input */}
         <Box sx={{ width: '100%' }}>
           <SearchInput
+            id={searchInputId}
             placeholder="Search name, ID or title"
             value={searchTerm}
-            onChange={(val) => setSearchTerm(val)}
+            onChange={(val) => dispatch({ type: 'SET_SEARCH', payload: val })}
             isLoading={isLoadingFilters}
           />
         </Box>
@@ -488,10 +600,11 @@ export const EmployeesPage: React.FC = () => {
         {/* Country filter */}
         <Box sx={{ width: '100%' }}>
           <Select
+            id={countrySelectId}
             value={selectedCountry}
             placeholder="Country"
             options={countryOptions}
-            onChange={(e) => { setSelectedCountry(e.target.value as string); setPage(1); }}
+            onChange={(e) => dispatch({ type: 'SET_COUNTRY', payload: e.target.value as string })}
             isLoading={isLoadingFilters}
           />
         </Box>
@@ -499,10 +612,11 @@ export const EmployeesPage: React.FC = () => {
         {/* Department filter */}
         <Box sx={{ width: '100%' }}>
           <Select
+            id={deptSelectId}
             value={selectedDept}
             placeholder="Department"
             options={deptOptions}
-            onChange={(e) => { setSelectedDept(e.target.value as string); setPage(1); }}
+            onChange={(e) => dispatch({ type: 'SET_DEPARTMENT', payload: e.target.value as string })}
             isLoading={isLoadingFilters}
           />
         </Box>
@@ -510,10 +624,11 @@ export const EmployeesPage: React.FC = () => {
         {/* Gender filter */}
         <Box sx={{ width: '100%' }}>
           <Select
+            id={genderSelectId}
             value={selectedGender}
             placeholder="Gender"
             options={genderOptions}
-            onChange={(e) => { setSelectedGender(e.target.value as string); setPage(1); }}
+            onChange={(e) => dispatch({ type: 'SET_GENDER', payload: e.target.value as string })}
             isLoading={isLoadingFilters}
           />
         </Box>
@@ -542,7 +657,7 @@ export const EmployeesPage: React.FC = () => {
                   page: meta.page,
                   total: meta.total,
                   limit: meta.limit,
-                  onPageChange: setPage,
+                  onPageChange: handlePageChange,
                   onLimitChange: handleLimitChange
                 }
                 : undefined
@@ -557,10 +672,10 @@ export const EmployeesPage: React.FC = () => {
             top: 24,
             maxHeight: { lg: 'calc(100vh - 48px)' },
             overflowY: 'auto',
-            scrollbarWidth: 'none', // Firefox
-            msOverflowStyle: 'none', // IE and Edge
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
             '&::-webkit-scrollbar': {
-              display: 'none' // Chrome, Safari, Edge
+              display: 'none'
             }
           }}
         >
@@ -572,25 +687,21 @@ export const EmployeesPage: React.FC = () => {
                 <Skeleton width={230} height={16} />
               </Box>
 
-              {/* Current Salary Skeleton */}
               <Box sx={{ mb: 3.5, p: 2.5, borderRadius: '16px', backgroundColor: '#fafbfc', border: '1px solid #f1f5f9' }}>
                 <Skeleton width={160} height={34} className="mb-1" />
                 <Skeleton width={120} height={16} />
               </Box>
 
-              {/* Pay Band Gauge Skeleton */}
               <Box sx={{ mb: 3.5 }}>
                 <Skeleton width={200} height={16} className="mb-2" />
                 <Skeleton height={8} borderRadius="4px" />
               </Box>
 
-              {/* Salary History Skeleton */}
               <Box sx={{ mb: 4 }}>
                 <Skeleton width={100} height={16} className="mb-2" />
                 <Skeleton count={3} height={40} className="mb-2" />
               </Box>
 
-              {/* Edit CTA Skeleton */}
               <Skeleton height={42} borderRadius="12px" />
             </Card>
           ) : selectedEmp ? (
@@ -821,10 +932,10 @@ export const EmployeesPage: React.FC = () => {
                       gap: 1.25,
                       maxHeight: 240,
                       overflowY: 'auto',
-                      scrollbarWidth: 'none', // Firefox
-                      msOverflowStyle: 'none', // IE and Edge
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none',
                       '&::-webkit-scrollbar': {
-                        display: 'none' // Chrome, Safari, Edge
+                        display: 'none'
                       }
                     }}
                   >

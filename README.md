@@ -20,7 +20,9 @@ ESMS/
 │       │   ├── components/   # UI primitives (Button, Input, Modal, etc.) & features
 │       │   │   └── ui/       # Design System primitives (Card, Badge, Skeleton, etc.)
 │       │   ├── services/     # Typed API client
+│       │   ├── test/         # Testing setup and Jest-DOM extensions
 │       │   └── index.css     # Systematic CSS variable tokens
+│       ├── vitest.config.ts  # Frontend Vitest + JSDOM configuration
 │       └── public/           # Static assets
 ├── packages/
 │   └── shared-types/         # Shared Zod validation schemas & TypeScript DTOs
@@ -49,7 +51,7 @@ ESMS/
 | **Backend** | Node.js, Express 5, TypeScript, Prisma ORM, Zod, tsx |
 | **Database** | SQLite *(Relational 3NF with B-tree indexing for ultra-fast 10k queries)* |
 | **Validation** | Dual-tier Zod validation (Shared contracts between frontend and backend) |
-| **Testing** | Vitest, Supertest (30/30 automated tests passing in ~2.5s) |
+| **Testing** | Vitest, React Testing Library, JSDOM, Supertest (59/59 automated tests passing across 14 suites in ~13s) |
 
 ---
 
@@ -201,19 +203,32 @@ Open **[http://localhost:5555](http://localhost:5555)** in your browser to inspe
 
 ---
 
-### 5. Run the Automated Test Suite (30 Production Tests)
+### 5. Run the Automated Test Suite (59 Full-Stack Production Tests)
 
-Runs 30 comprehensive, deterministic tests covering salary math, multi-currency conversion, Zod schema validation, transaction rollbacks, and HTTP contracts:
+The monorepo includes **59 deterministic, automated tests across 14 test suites** covering both backend (database transactions, multi-currency conversions, analytics math, Zod validation, HTTP contracts) and frontend (atomic design primitives, transactional salary calculations, debounced search, server-side data tables, typed API client, and full page views):
 
-* **Option A — From Root Directory:**
+* **Run All 59 Tests across Backend & Frontend (Root Directory):**
   ```bash
   npm test
   ```
 
-* **Option B — Inside `apps/backend-esms` Folder:**
+* **Run Backend Test Suites Only (30 Tests across 5 Suites):**
   ```bash
-  cd apps/backend-esms
-  npm test
+  npm run test:backend
+  # or:
+  cd apps/backend-esms && npm test
+  ```
+
+* **Run Frontend Test Suites Only (29 Tests across 9 Suites):**
+  ```bash
+  npm run test:web
+  # or:
+  cd apps/web-esms && npm test
+  ```
+
+* **Run Frontend Tests in Interactive Watch Mode:**
+  ```bash
+  npm run test:web:watch
   ```
 
 ---

@@ -71,8 +71,10 @@ describe('Suite 4: Transactional Integrity & Audit Logging Tests', () => {
     await expect(
       salaryService.updateSalary(fakeId, {
         baseSalary: 100000,
+        bonus: 0,
         currency: 'USD',
-        changeReason: 'Should fail'
+        changeReason: 'Should fail',
+        changedBy: 'Test HR'
       })
     ).rejects.toThrow('Employee not found');
   });

@@ -71,10 +71,16 @@ To ensure laser focus on the core objective within the assessment timeline, the 
 * **Reliability & ACID Compliance:** All salary alterations must use database transactions (`prisma.$transaction`) to prevent orphan or corrupted records.
 * **Auto-Bootstrap Database:** Server startup verifies database state and auto-seeds if empty without blocking subsequent restarts.
 * **Type Safety:** End-to-end type safety across the monorepo via shared TypeScript contracts and Zod schemas.
-* **Comprehensive Test Suite (30 Deterministic Tests):** Fast, 100% deterministic tests across 5 isolated suites:
-  1. **Salary Math & Multi-Currency Engine:** Testing formula precision, currency exchange rates across all 8 jurisdictions, and edge cases.
-  2. **Dual-Tier Zod Validation:** Asserting query constraints, payload sanitization, and rejection of negative/malformed financial inputs.
-  3. **Compensation Analytics Aggregations:** Verifying exact median calculation (odd/even), spend share percentages (100% sum), and gender pay gap parity ratios.
-  4. **Atomic Transaction & Audit Logging:** Testing state mutation, `isCurrent` flag rotation, and immutable audit record generation.
-  5. **HTTP REST API Contracts:** Testing live status codes, pagination meta, and 400/404 handling via Supertest.
+* **Comprehensive Test Suite (59 Full-Stack Production Tests across 14 Suites):** 100% deterministic, automated test coverage spanning both backend and frontend:
+  * **Backend Test Matrix (30 Tests across 5 Suites):**
+    1. **Salary Math & Multi-Currency Engine:** Testing formula precision, currency exchange rates across all 8 jurisdictions, and large integer edge cases.
+    2. **Dual-Tier Zod Validation:** Asserting query constraints, payload sanitization, and rejection of negative/malformed financial inputs.
+    3. **Compensation Analytics Aggregations:** Verifying exact median calculation (odd/even), spend share percentages (100% sum), and gender pay gap parity ratios.
+    4. **Atomic Transaction & Audit Logging:** Testing state mutation, `isCurrent` flag rotation, and immutable audit record generation.
+    5. **HTTP REST API Contracts:** Testing live status codes, pagination meta, and 400/404 handling via Supertest.
+  * **Frontend Test Matrix (29 Tests across 9 Suites via Vitest + RTL + JSDOM):**
+    6. **UI Component Primitives:** Button (variants, loading, disabled), Badge (chips, colors), Card (headers, slots), SearchInput (350ms debounce with fake timers), and DataTable (column headers, custom empty state, pagination controls).
+    7. **Business Logic & Salary Math:** Transactional SalaryEditModal (real-time net pay calculation `Base + Bonus - Deductions`, mandatory >= 3-char change reason validation, profile rendering, and submission payload).
+    8. **Typed API Client:** Parameter serialization, JSON payload creation, and structured error propagation.
+    9. **Strategic View Integration:** DashboardPage ("How we pay people", KPI cards, department spend table, Chart.js mocks) and EmployeesPage (MemoryRouter, directory table, master-detail panel).
 

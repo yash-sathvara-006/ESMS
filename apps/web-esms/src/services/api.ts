@@ -12,7 +12,8 @@ import type {
   PayEquityDTO,
   SalaryBandDTO,
   SalaryAuditLogDTO,
-  ExportEmployeeInput
+  ExportEmployeeInput,
+  AnalyticsTimeframeDTO
 } from 'shared-types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -105,24 +106,48 @@ class ApiService {
   }
 
   // Strategic Analytics
-  async getSummary(): Promise<{ status: string; data: AnalyticsSummaryDTO }> {
-    return this.request<{ status: string; data: AnalyticsSummaryDTO }>('/analytics/summary');
+  async getTimeframe(): Promise<{ status: string; data: AnalyticsTimeframeDTO }> {
+    return this.request<{ status: string; data: AnalyticsTimeframeDTO }>('/analytics/timeframe');
   }
 
-  async getDepartmentSpend(): Promise<{ status: string; data: DepartmentSpendDTO[] }> {
-    return this.request<{ status: string; data: DepartmentSpendDTO[] }>('/analytics/by-department');
+  async getSummary(filter?: { year?: number; month?: number }): Promise<{ status: string; data: AnalyticsSummaryDTO }> {
+    const params = new URLSearchParams();
+    if (filter?.year) params.append('year', String(filter.year));
+    if (filter?.month) params.append('month', String(filter.month));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<{ status: string; data: AnalyticsSummaryDTO }>(`/analytics/summary${query}`);
   }
 
-  async getCountrySpend(): Promise<{ status: string; data: CountrySpendDTO[] }> {
-    return this.request<{ status: string; data: CountrySpendDTO[] }>('/analytics/by-country');
+  async getDepartmentSpend(filter?: { year?: number; month?: number }): Promise<{ status: string; data: DepartmentSpendDTO[] }> {
+    const params = new URLSearchParams();
+    if (filter?.year) params.append('year', String(filter.year));
+    if (filter?.month) params.append('month', String(filter.month));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<{ status: string; data: DepartmentSpendDTO[] }>(`/analytics/by-department${query}`);
   }
 
-  async getPayEquity(): Promise<{ status: string; data: PayEquityDTO[] }> {
-    return this.request<{ status: string; data: PayEquityDTO[] }>('/analytics/pay-equity');
+  async getCountrySpend(filter?: { year?: number; month?: number }): Promise<{ status: string; data: CountrySpendDTO[] }> {
+    const params = new URLSearchParams();
+    if (filter?.year) params.append('year', String(filter.year));
+    if (filter?.month) params.append('month', String(filter.month));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<{ status: string; data: CountrySpendDTO[] }>(`/analytics/by-country${query}`);
   }
 
-  async getSalaryBands(): Promise<{ status: string; data: SalaryBandDTO[] }> {
-    return this.request<{ status: string; data: SalaryBandDTO[] }>('/analytics/salary-bands');
+  async getPayEquity(filter?: { year?: number; month?: number }): Promise<{ status: string; data: PayEquityDTO[] }> {
+    const params = new URLSearchParams();
+    if (filter?.year) params.append('year', String(filter.year));
+    if (filter?.month) params.append('month', String(filter.month));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<{ status: string; data: PayEquityDTO[] }>(`/analytics/pay-equity${query}`);
+  }
+
+  async getSalaryBands(filter?: { year?: number; month?: number }): Promise<{ status: string; data: SalaryBandDTO[] }> {
+    const params = new URLSearchParams();
+    if (filter?.year) params.append('year', String(filter.year));
+    if (filter?.month) params.append('month', String(filter.month));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<{ status: string; data: SalaryBandDTO[] }>(`/analytics/salary-bands${query}`);
   }
 }
 

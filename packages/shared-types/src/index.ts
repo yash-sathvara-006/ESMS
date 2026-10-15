@@ -208,3 +208,18 @@ export interface SalaryBandDTO {
   count: number;
   percentage: number;
 }
+
+export interface AnalyticsTimeframeDTO {
+  years: number[];
+  currentYear: number;
+  currentMonth: number;
+  minYear: number;
+  maxYear: number;
+}
+
+export const analyticsFilterSchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+  month: z.coerce.number().int().min(1).max(12).optional()
+});
+
+export type AnalyticsFilterQuery = z.infer<typeof analyticsFilterSchema>;
